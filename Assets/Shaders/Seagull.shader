@@ -137,9 +137,9 @@ Shader "PGATR/Seagull"
                 float s = lerp(_SizeMin, _SizeMax, rand(float(IN[0].id))) * 0.8;
     
                 float bodyW = 0.2 * s;
-                float crease = _BodyCrease * s;
-                float wingL = 0.3 * s;   // Length of inner wing
-                float tipL  = 0.5 * s;   // Length of outer wing
+                float creaseDepth = _BodyCrease * s;
+                float wingW = 0.15 * s;
+                float tipW  = 0.25 * s;
 
                 // Animation
                 float flapSin = sin(_Time.y * (IN[0].speed * _FlapSpeedToVelocityRelation));
@@ -157,12 +157,12 @@ Shader "PGATR/Seagull"
                 // --- CONSTRUCTION: FROM LEFT TIP TO RIGHT TIP (12 Vertices) ---
     
                 // 1. LEFT WING TIP (UV 0.0)
-                float3 p1 = mul(tipLRot, -right * (bodyW + wingL + tipL));
+                float3 p1 = mul(tipLRot, -right * (bodyW + wingW + tipW));
                 o.uv = float2(0.0, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p1 + fwd * chord, 1)); triStream.Append(o);
                 o.uv = float2(0.0, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p1 - fwd * chord, 1)); triStream.Append(o);
 
                 // 2. LEFT ELBOW (UV 0.25)
-                float3 p2 = mul(rotL, -right * (bodyW + wingL));
+                float3 p2 = mul(rotL, -right * (bodyW + wingW));
                 o.uv = float2(0.25, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p2 + fwd * chord, 1)); triStream.Append(o);
                 o.uv = float2(0.25, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p2 - fwd * chord, 1)); triStream.Append(o);
 
@@ -172,7 +172,7 @@ Shader "PGATR/Seagull"
                 o.uv = float2(0.4, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p3 - fwd * chord, 1)); triStream.Append(o);
 
                 // 4. SPINE - THE CREASE (UV 0.5)
-                float3 p4 = -localUp * crease; 
+                float3 p4 = -localUp * creaseDepth; 
                 o.uv = float2(0.5, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p4 + fwd * chord, 1)); triStream.Append(o);
                 o.uv = float2(0.5, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p4 - fwd * chord, 1)); triStream.Append(o);
 
@@ -182,12 +182,12 @@ Shader "PGATR/Seagull"
                 o.uv = float2(0.6, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p5 - fwd * chord, 1)); triStream.Append(o);
 
                 // 6. RIGHT ELBOW (UV 0.75)
-                float3 p6 = mul(rotR, right * (bodyW + wingL));
+                float3 p6 = mul(rotR, right * (bodyW + wingW));
                 o.uv = float2(0.75, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p6 + fwd * chord, 1)); triStream.Append(o);
                 o.uv = float2(0.75, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p6 - fwd * chord, 1)); triStream.Append(o);
 
                 // 7. RIGHT WING TIP (UV 1.0)
-                float3 p7 = mul(tipRRot, right * (bodyW + wingL + tipL));
+                float3 p7 = mul(tipRRot, right * (bodyW + wingW + tipW));
                 o.uv = float2(1.0, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p7 + fwd * chord, 1)); triStream.Append(o);
                 o.uv = float2(1.0, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p7 - fwd * chord, 1)); triStream.Append(o);
 
@@ -200,14 +200,9 @@ Shader "PGATR/Seagull"
 	        #include "Lighting.cginc"
 	        fixed4 frag (geometryOutput i) : SV_Target
             {
-                // 1. Sample the texture
-		        fixed4 col = tex2D(_MainTex, i.uv);
-
-		        // 2. The Clip Magic:
-		        // If (col.a - 0.5) is less than 0, the pixel is discarded.
-		        clip(col.a - 0.5);
-
-		        return col;
+		        fixed4 tex = tex2D(_MainTex, i.uv);
+		        clip(tex.a - 0.5);
+		        return tex;
             }
             ENDCG
         }
