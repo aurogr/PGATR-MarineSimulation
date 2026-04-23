@@ -73,6 +73,17 @@ Shader "PGATR/Seagull"
 		return o;
 	}
 
+    // Instead of an array, because of problems with the GPU, we use a simple func
+    float GetXPos(int i) {
+        if (i == 0) return 0.0;
+        if (i == 1) return 0.25;
+        if (i == 2) return 0.42;
+        if (i == 3) return 0.5;
+        if (i == 4) return 0.58;
+        if (i == 5) return 0.75;
+        return 1.0;
+    }
+
 	ENDCG
 
     SubShader
@@ -113,114 +124,73 @@ Shader "PGATR/Seagull"
             float _SizeMax;
             float _BodyCrease;
 
-            // -------- GEOMETRY SHADER ------------
-	        [maxvertexcount(36)]
+            [maxvertexcount(14)] // 5 Quads in a single strip = 12 vertices
             void geo(point vertexOutput IN[1], inout TriangleStream<geometryOutput> triStream)
             {
-                geometryOutput o;
-                // get parameters from the vertex shader
                 float3 pos = IN[0].pos.xyz;
                 float3 fwd = normalize(IN[0].direction);
-                float boidSpeed = IN[0].speed;
-                
-                // Get random size, between size min and max
-                float rSize = rand(float3(IN[0].id, IN[0].id, IN[0].id)); // seed is random but consistent per boid
-                float s = lerp(_SizeMin, _SizeMax, rSize);
-                
-                // Animation parameters, based on the boid's speed and the global time
-                float flapSin = sin(_Time.y * (boidSpeed * _FlapSpeedToVelocityRelation));
-                float amp = boidSpeed * _FlapAmplitudeToSpeedRelation;
+                float3 worldUp = float3(0, 1, 0);
+                float3 right = normalize(cross(worldUp, fwd));
+                float3 localUp = cross(fwd, right);
 
-                float3x3 rotL = AngleAxis3x3(flapSin * amp, fwd);
-                float3x3 rotLStronger = AngleAxis3x3(flapSin * amp * 2, fwd);
-                float3x3 rotR = AngleAxis3x3(-flapSin * amp, fwd);
-                float3x3 rotRStronger = AngleAxis3x3(-flapSin * amp * 2, fwd);
-
-                // construct right and up vector to create a local space for the bird based on its forward direction
-                float3 right = normalize(cross(float3(0, 1, 0), fwd));
-                float3 up = cross(fwd, right); // crease direction
-
-                // body parameters
+                // Random Size (between your Min/Max)
+                float s = lerp(_SizeMin, _SizeMax, rand(float(IN[0].id))) * 0.8;
+    
                 float bodyW = 0.2 * s;
-                float3 sideL = -right * bodyW;
-                float3 sideR =  right * bodyW;
-                float3 spine = -up * _BodyCrease; // push center down
+                float crease = _BodyCrease * s;
+                float wingL = 0.3 * s;   // Length of inner wing
+                float tipL  = 0.5 * s;   // Length of outer wing
 
-                // Body is two triangle strips with a crease in the center to show a little more dimension                
-                // 1. HEAD
-                float3 h_start = fwd * s * 1;
-                float3 h_end = fwd * s * 0.8;
-                // Left Head
-                o.uv = float2(0.42, 1.0); o.pos = UnityObjectToClipPos(float4(pos + h_start + sideL, 1)); triStream.Append(o);
-                o.uv = float2(0.50, 1.0); o.pos = UnityObjectToClipPos(float4(pos + h_start + spine, 1)); triStream.Append(o);
-                o.uv = float2(0.42, 0.8); o.pos = UnityObjectToClipPos(float4(pos + h_end + sideL, 1)); triStream.Append(o);
-                o.uv = float2(0.50, 0.8); o.pos = UnityObjectToClipPos(float4(pos + h_end + spine, 1)); triStream.Append(o);
-                triStream.RestartStrip();
-                // Right Head
-                o.uv = float2(0.50, 1.0); o.pos = UnityObjectToClipPos(float4(pos + h_start + spine, 1)); triStream.Append(o);
-                o.uv = float2(0.58, 1.0); o.pos = UnityObjectToClipPos(float4(pos + h_start + sideR, 1)); triStream.Append(o);
-                o.uv = float2(0.50, 0.8); o.pos = UnityObjectToClipPos(float4(pos + h_end + spine, 1)); triStream.Append(o);
-                o.uv = float2(0.58, 0.8); o.pos = UnityObjectToClipPos(float4(pos + h_end + sideR, 1)); triStream.Append(o);
-                triStream.RestartStrip();
+                // Animation
+                float flapSin = sin(_Time.y * (IN[0].speed * _FlapSpeedToVelocityRelation));
+                float amp = IN[0].speed * _FlapAmplitudeToSpeedRelation;
 
-                // 2. BODY
-                float3 b_start = fwd * s * 0.8;
-                float3 b_end = -fwd * s * 0.5;
-                // Left Body
-                o.uv = float2(0.42, 0.8); o.pos = UnityObjectToClipPos(float4(pos + b_start + sideL, 1)); triStream.Append(o);
-                o.uv = float2(0.50, 0.8); o.pos = UnityObjectToClipPos(float4(pos + b_start + spine, 1)); triStream.Append(o);
-                o.uv = float2(0.42, 0.3); o.pos = UnityObjectToClipPos(float4(pos + b_end + sideL, 1)); triStream.Append(o);
-                o.uv = float2(0.50, 0.3); o.pos = UnityObjectToClipPos(float4(pos + b_end + spine, 1)); triStream.Append(o);
-                triStream.RestartStrip();
-                // Right Body
-                o.uv = float2(0.50, 0.8); o.pos = UnityObjectToClipPos(float4(pos + b_start + spine, 1)); triStream.Append(o);
-                o.uv = float2(0.58, 0.8); o.pos = UnityObjectToClipPos(float4(pos + b_start + sideR, 1)); triStream.Append(o);
-                o.uv = float2(0.50, 0.3); o.pos = UnityObjectToClipPos(float4(pos + b_end + spine, 1)); triStream.Append(o);
-                o.uv = float2(0.58, 0.3); o.pos = UnityObjectToClipPos(float4(pos + b_end + sideR, 1)); triStream.Append(o);
-                triStream.RestartStrip();
+                // Rotation Matrices
+                float3x3 rotL = AngleAxis3x3(flapSin * amp, fwd);
+                float3x3 rotR = AngleAxis3x3(-flapSin * amp, fwd);
+                float3x3 tipLRot = mul(rotL, rotL); // Doubled rotation for tips
+                float3x3 tipRRot = mul(rotR, rotR);
 
-                // 3. TAIL
-                float3 t_start = -fwd * s * 0.5;
-                float3 t_end = -fwd * s * 1;
-                // Left Tail
-                o.uv = float2(0.42, 0.3); o.pos = UnityObjectToClipPos(float4(pos + t_start + sideL, 1)); triStream.Append(o);
-                o.uv = float2(0.50, 0.3); o.pos = UnityObjectToClipPos(float4(pos + t_start + spine, 1)); triStream.Append(o);
-                o.uv = float2(0.42, 0.0); o.pos = UnityObjectToClipPos(float4(pos + t_end + sideL, 1)); triStream.Append(o);
-                o.uv = float2(0.50, 0.0); o.pos = UnityObjectToClipPos(float4(pos + t_end + spine, 1)); triStream.Append(o);
-                triStream.RestartStrip();
-                // Right Tail
-                o.uv = float2(0.50, 0.3); o.pos = UnityObjectToClipPos(float4(pos + t_start + spine, 1)); triStream.Append(o);
-                o.uv = float2(0.58, 0.3); o.pos = UnityObjectToClipPos(float4(pos + t_start + sideR, 1)); triStream.Append(o);
-                o.uv = float2(0.50, 0.0); o.pos = UnityObjectToClipPos(float4(pos + t_end + spine, 1)); triStream.Append(o);
-                o.uv = float2(0.58, 0.0); o.pos = UnityObjectToClipPos(float4(pos + t_end + sideR, 1)); triStream.Append(o);
-                triStream.RestartStrip();
+                geometryOutput o;
+                float chord = 0.4 * s;   // The "width" of the bird (front-to-back)
 
-                // --- 4. WINGS (Using Rotations) ---
-                // Left Wing
-                float3 wing_end = - fwd * s * 0.2;
-                o.uv = float2(0.42, 0.7); o.pos = UnityObjectToClipPos(float4(pos - b_end + sideL, 1)); triStream.Append(o);
-                o.uv = float2(0.42, 0.4); o.pos = UnityObjectToClipPos(float4(pos + wing_end + sideL, 1)); triStream.Append(o);
-                float3 elbLT = mul(rotL, -right * s * 1.0 + fwd * s * 0.2);
-                float3 elbLB = mul(rotL, -right * s * 1.0 - fwd * s * 0.1);
-                o.uv = float2(0.25, 0.8); o.pos = UnityObjectToClipPos(float4(pos + elbLT, 1)); triStream.Append(o);
-                o.uv = float2(0.25, 0.5); o.pos = UnityObjectToClipPos(float4(pos + elbLB, 1)); triStream.Append(o);
-                float3 tipLT = mul(rotLStronger, -right * s * 2.0 + fwd * s * 0.1);
-                float3 tipLB = mul(rotLStronger, -right * s * 2.0 - fwd * s * 0.1);
-                o.uv = float2(0.0, 0.6); o.pos = UnityObjectToClipPos(float4(pos + tipLT, 1)); triStream.Append(o);
-                o.uv = float2(0.0, 0.3); o.pos = UnityObjectToClipPos(float4(pos + tipLB, 1)); triStream.Append(o);
-                triStream.RestartStrip();
+                // --- CONSTRUCTION: FROM LEFT TIP TO RIGHT TIP (12 Vertices) ---
+    
+                // 1. LEFT WING TIP (UV 0.0)
+                float3 p1 = mul(tipLRot, -right * (bodyW + wingL + tipL));
+                o.uv = float2(0.0, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p1 + fwd * chord, 1)); triStream.Append(o);
+                o.uv = float2(0.0, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p1 - fwd * chord, 1)); triStream.Append(o);
 
-                // Right Wing
-                o.uv = float2(0.58, 0.7); o.pos = UnityObjectToClipPos(float4(pos + fwd * s * 0.5 + sideR, 1)); triStream.Append(o);
-                o.uv = float2(0.58, 0.4); o.pos = UnityObjectToClipPos(float4(pos - fwd * s * 0.2 + sideR, 1)); triStream.Append(o);
-                float3 elbRT = mul(rotR, right * s * 1.0 + fwd * s * 0.2);
-                float3 elbRB = mul(rotR, right * s * 1.0 - fwd * s * 0.1);
-                o.uv = float2(0.75, 0.8); o.pos = UnityObjectToClipPos(float4(pos + elbRT, 1)); triStream.Append(o);
-                o.uv = float2(0.75, 0.5); o.pos = UnityObjectToClipPos(float4(pos + elbRB, 1)); triStream.Append(o);
-                float3 tipRT = mul(rotRStronger, right * s * 2.0 + fwd * s * 0.1);
-                float3 tipRB = mul(rotRStronger, right * s * 2.0 - fwd * s * 0.1);
-                o.uv = float2(1.0, 0.6); o.pos = UnityObjectToClipPos(float4(pos + tipRT, 1)); triStream.Append(o);
-                o.uv = float2(1.0, 0.3); o.pos = UnityObjectToClipPos(float4(pos + tipRB, 1)); triStream.Append(o);
+                // 2. LEFT ELBOW (UV 0.25)
+                float3 p2 = mul(rotL, -right * (bodyW + wingL));
+                o.uv = float2(0.25, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p2 + fwd * chord, 1)); triStream.Append(o);
+                o.uv = float2(0.25, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p2 - fwd * chord, 1)); triStream.Append(o);
+
+                // 3. LEFT SHOULDER / BODY EDGE (UV 0.4)
+                float3 p3 = -right * bodyW;
+                o.uv = float2(0.4, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p3 + fwd * chord, 1)); triStream.Append(o);
+                o.uv = float2(0.4, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p3 - fwd * chord, 1)); triStream.Append(o);
+
+                // 4. SPINE - THE CREASE (UV 0.5)
+                float3 p4 = -localUp * crease; 
+                o.uv = float2(0.5, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p4 + fwd * chord, 1)); triStream.Append(o);
+                o.uv = float2(0.5, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p4 - fwd * chord, 1)); triStream.Append(o);
+
+                // 5. RIGHT SHOULDER / BODY EDGE (UV 0.6)
+                float3 p5 = right * bodyW;
+                o.uv = float2(0.6, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p5 + fwd * chord, 1)); triStream.Append(o);
+                o.uv = float2(0.6, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p5 - fwd * chord, 1)); triStream.Append(o);
+
+                // 6. RIGHT ELBOW (UV 0.75)
+                float3 p6 = mul(rotR, right * (bodyW + wingL));
+                o.uv = float2(0.75, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p6 + fwd * chord, 1)); triStream.Append(o);
+                o.uv = float2(0.75, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p6 - fwd * chord, 1)); triStream.Append(o);
+
+                // 7. RIGHT WING TIP (UV 1.0)
+                float3 p7 = mul(tipRRot, right * (bodyW + wingL + tipL));
+                o.uv = float2(1.0, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p7 + fwd * chord, 1)); triStream.Append(o);
+                o.uv = float2(1.0, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p7 - fwd * chord, 1)); triStream.Append(o);
+
                 triStream.RestartStrip();
             }
 
