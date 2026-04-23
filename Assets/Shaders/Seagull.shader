@@ -47,16 +47,14 @@ Shader "PGATR/Seagull"
     // It must be the same as the struct defined in the C# script.
 	struct Boid{
 		float3 position;
-		float3 direction;
-		float speed;
+		float3 velocity;
 	};
     
     StructuredBuffer<Boid> _BoidBuffer;
 
 	struct vertexOutput {
         float4 pos : SV_POSITION;
-        float3 direction : TEXCOORD0;
-        float speed : TEXCOORD1;
+        float3 velocity : TEXCOORD0;
         float id : TEXCOORD2;
     };
 
@@ -111,8 +109,7 @@ Shader "PGATR/Seagull"
                 vertexOutput o;
                 Boid boid = _BoidBuffer[id];
                 o.pos = float4(boid.position, 1.0);
-                o.direction =  boid.direction;
-                o.speed = boid.speed;
+                o.velocity = boid.velocity;
                 o.id = id;
                 return o;
             }
@@ -127,8 +124,9 @@ Shader "PGATR/Seagull"
             [maxvertexcount(14)] // 5 Quads in a single strip = 12 vertices
             void geo(point vertexOutput IN[1], inout TriangleStream<geometryOutput> triStream)
             {
+                float3 speed = length(IN[0].velocity);
                 float3 pos = IN[0].pos.xyz;
-                float3 fwd = normalize(IN[0].direction);
+                float3 fwd = normalize(IN[0].velocity);
                 float3 worldUp = float3(0, 1, 0);
                 float3 right = normalize(cross(worldUp, fwd));
                 float3 localUp = cross(fwd, right);
@@ -142,8 +140,8 @@ Shader "PGATR/Seagull"
                 float tipW  = 0.25 * s;
 
                 // Animation
-                float flapSin = sin(_Time.y * (IN[0].speed * _FlapSpeedToVelocityRelation));
-                float amp = IN[0].speed * _FlapAmplitudeToSpeedRelation;
+                float flapSin = sin(_Time.y * (speed * _FlapSpeedToVelocityRelation));
+                float amp = speed * _FlapAmplitudeToSpeedRelation;
 
                 // Rotation Matrices
                 float3x3 rotL = AngleAxis3x3(flapSin * amp, fwd);

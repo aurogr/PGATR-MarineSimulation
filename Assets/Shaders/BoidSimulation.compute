@@ -1,0 +1,90 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+struct Boid
+{
+    float3 position;
+    float3 velocity;
+};
+
+RWStructuredBuffer<Boid> _boidBuffer;
+
+// Variables set from C# script
+// Simulation Settings
+float _DeltaTime;
+uint _BoidCount;
+
+// Flocking Settings
+float _NeighborRadius;
+float _AvoidanceRadius;
+float _MinSpeed;
+float _MaxSpeed;
+
+// Weights for the three rules
+float _SeparationWeight;
+float _AlignmentWeight;
+float _CohesionWeight;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _BoidCount)
+        return;
+
+    Boid boid = _boidBuffer[id.x];
+    
+    uint neighborCount = 0;
+    
+    float3 sumNeighborVelocities = float3(0, 0, 0);
+    float3 sumNeighborPositions = float3(0, 0, 0);
+    
+    float3 separationForce = float3(0, 0, 0);
+    
+    float3 alignment = float3(0, 0, 0);
+    float3 cohesion = float3(0, 0, 0);
+    
+    // Every bird iterates through every OTHER bird
+    for (uint i = 0; i < _BoidCount; i++)
+    {
+        if (i == id.x)
+            continue;
+        
+        float3 iPos = _boidBuffer[i].position;
+        
+        float3 iDiff = iPos - boid.position;
+        float iDist = length(iDiff);
+        
+        if (iDist < _NeighborRadius)
+        {
+            neighborCount++;
+            
+            sumNeighborVelocities += _boidBuffer[i].velocity;
+            sumNeighborPositions += _boidBuffer[i].position;
+            
+            // Separation force (stronger the closer the neighbour is)
+            const float ths_dist = max(_AvoidanceRadius, iDist);
+            separationForce -= iDiff / (ths_dist * ths_dist); // Repulse
+        }
+    }
+
+    // Update position/speed
+    float3 force = float3(0, 0, 0);
+    
+    if (neighborCount != 0)
+    {
+        float3 avgPos = sumNeighborPositions / neighborCount;
+        float3 avgVelocity = sumNeighborVelocities / neighborCount;
+        force += _CohesionWeight * (avgPos - boid.position);
+        force += _AlignmentWeight * (avgVelocity - boid.velocity);
+    }
+    
+    force += _SeparationWeight * separationForce;
+
+    // Update position
+    boid.position += boid.velocity * _DeltaTime;
+
+    // Update speed
+    boid.velocity += force * _DeltaTime;
+    
+    boid.velocity = clamp(boid.velocity, _MinSpeed, _MaxSpeed);
+}

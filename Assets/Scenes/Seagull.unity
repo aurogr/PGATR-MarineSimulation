@@ -241,10 +241,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FlockController
   renderMat: {fileID: 2100000, guid: d89d1d611f90c4545817dab967870e08, type: 2}
+  computeShader: {fileID: 7200000, guid: 7a3109f3e70782546918cbc8d2ad471b, type: 3}
   flockSize: 100
   startingPosRadius: 10
+  neighborRadius: 0
+  avoidanceRadius: 0
   minSpeed: 2
   maxSpeed: 5
+  separationWeight: 0
+  alignmentWeight: 0
+  cohesionWeight: 0
 --- !u!4 &338487620
 Transform:
   m_ObjectHideFlags: 0
