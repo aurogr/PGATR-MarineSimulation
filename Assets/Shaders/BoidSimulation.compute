@@ -1,0 +1,141 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+struct Boid
+{
+    float3 position;
+    float3 velocity;
+};
+
+RWStructuredBuffer<Boid> _boidBuffer;
+
+// Variables set from C# script
+// Simulation Settings
+float _DeltaTime;
+uint _BoidCount;
+
+// Flocking Settings
+float _NeighborDetectionRadius;
+float _NeighbourAvoidanceRadius;
+float _MinSpeed;
+float _MaxSpeed;
+
+// Box Boundaries
+float3 _BoxCenter;
+float3 _BoxSize;
+float _BoundaryWeight;
+
+// Follow target
+bool _FollowTarget;
+float3 _TargetPosition;
+float _TargetWeight;
+
+// Weights for the three rules
+float _SeparationWeight;
+float _AlignmentWeight;
+float _CohesionWeight;
+
+[numthreads(64, 1, 1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x >= _BoidCount)
+        return;
+
+    Boid boid = _boidBuffer[id.x];
+    
+    uint neighborCount = 0;
+    
+    float3 sumNeighborVelocities = float3(0, 0, 0);
+    float3 sumNeighborPositions = float3(0, 0, 0);
+    
+    float3 separationForce = float3(0, 0, 0);
+    
+    float3 alignment = float3(0, 0, 0);
+    float3 cohesion = float3(0, 0, 0);
+    
+    // ------- Find neighbors -----------
+    for (uint i = 0; i < _BoidCount; i++)
+    {
+        if (i == id.x)
+            continue;
+        
+        float3 iPos = _boidBuffer[i].position;
+        
+        float3 iDiff = iPos - boid.position;
+        float iDist = length(iDiff);
+        
+        if (iDist < _NeighborDetectionRadius)
+        {
+            neighborCount++;
+            
+            sumNeighborVelocities += _boidBuffer[i].velocity;
+            sumNeighborPositions += _boidBuffer[i].position;
+            
+            // Separation force (stronger the closer the neighbour is)
+            const float ths_dist = max(_NeighbourAvoidanceRadius, iDist);
+            separationForce -= iDiff / (ths_dist * ths_dist); // Repulse
+        }
+    }
+
+    // ------- Calculate force -----------
+    float3 force = float3(0, 0, 0);
+    
+    // Boundary avoidance force
+    float3 boxMin = _BoxCenter - _BoxSize * 0.5;
+    float3 boxMax = _BoxCenter + _BoxSize * 0.5;
+    
+    float3 avoidanceForce = float3(0, 0, 0);
+    
+    if (boid.position.x < boxMin.x)
+        avoidanceForce.x = 1;
+    else if (boid.position.x > boxMax.x)
+        avoidanceForce.x = -1;
+    
+    if (boid.position.y < boxMin.y)
+        avoidanceForce.y = 1;
+    else if (boid.position.y > boxMax.y)
+        avoidanceForce.y = -1;
+    
+    if (boid.position.z < boxMin.z)
+        avoidanceForce.z = 1;
+    else if (boid.position.z > boxMax.z)
+        avoidanceForce.z = -1;    
+    
+    force += avoidanceForce * _BoundaryWeight;
+    
+    // Follow target force
+    if (_FollowTarget)
+    {
+        float3 toTarget = _TargetPosition - boid.position;
+        force += normalize(toTarget) * _TargetWeight;
+    }
+    
+    // Cohesion and Alignment force
+    if (neighborCount != 0)
+    {
+        float3 avgPos = sumNeighborPositions / neighborCount;
+        float3 avgVelocity = sumNeighborVelocities / neighborCount;
+        force += _CohesionWeight * (avgPos - boid.position);
+        force += _AlignmentWeight * (avgVelocity - boid.velocity);
+    }
+    
+    // Separation force
+    force += _SeparationWeight * separationForce;
+
+    // ------- Update pos/vel -----------
+    // Update speed
+    boid.velocity += force * _DeltaTime;
+    
+    // Clamp speed
+    float speed = length(boid.velocity);
+    if (speed > _MaxSpeed)
+        boid.velocity = (boid.velocity / speed) * _MaxSpeed;
+    else if (speed < _MinSpeed)
+        boid.velocity = (boid.velocity / speed) * _MinSpeed;
+    
+    // Update position
+    boid.position += boid.velocity * _DeltaTime;
+    
+    // Write back to buffer
+    _boidBuffer[id.x] = boid;
+}
