@@ -4,8 +4,6 @@ Shader "PGATR/Seagull"
     {
 		[Header(Shading)]
         _MainTex("Texture", 2D) = "white" {}
-		_SizeMin("SizeMin", Float) = 0.2
-		_SizeMax("SizeMax", Float) = 0.5
         _BodyCrease("Body Crease", Float) = 0.5
 		_FlapSpeedToVelocityRelation ("Flap Speed To Velocity Relation", Float) = 2
 		_FlapAmplitudeToSpeedRelation ("Flap Amplitude To Speed Relation", Float) = 0.2
@@ -48,6 +46,7 @@ Shader "PGATR/Seagull"
 	struct Boid{
 		float3 position;
 		float3 velocity;
+		float size;
 	};
     
     StructuredBuffer<Boid> _BoidBuffer;
@@ -55,7 +54,7 @@ Shader "PGATR/Seagull"
 	struct vertexOutput {
         float4 pos : SV_POSITION;
         float3 velocity : TEXCOORD0;
-        float id : TEXCOORD2;
+        float size : TEXCOORD1;
     };
 
 	struct geometryOutput {
@@ -110,7 +109,7 @@ Shader "PGATR/Seagull"
                 Boid boid = _BoidBuffer[id];
                 o.pos = float4(boid.position, 1.0);
                 o.velocity = boid.velocity;
-                o.id = id;
+                o.size = boid.size;
                 return o;
             }
     
@@ -130,9 +129,7 @@ Shader "PGATR/Seagull"
                 float3 worldUp = float3(0, 1, 0);
                 float3 right = normalize(cross(worldUp, fwd));
                 float3 localUp = cross(fwd, right);
-
-                // Random Size between min and max
-                float s = lerp(_SizeMin, _SizeMax, rand(float(IN[0].id)));
+                float s = IN[0].size;
     
                 float bodyW = 0.2 * s;
                 float creaseDepth = _BodyCrease * s;

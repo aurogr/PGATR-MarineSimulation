@@ -227,7 +227,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &338487619
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -244,6 +244,32 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 7a3109f3e70782546918cbc8d2ad471b, type: 3}
   flockSize: 100
   startingPosRadius: 5
+  minBoidSize: 0.1
+  maxBoidSize: 1
+  sizeDistribution:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    - serializedVersion: 3
+      time: 1
+      value: 1
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 34
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
   neighborDetectionRadius: 3
   neighborAvoidanceRadius: 1
   minSpeed: 2
@@ -426,6 +452,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1610810726}
   - component: {fileID: 1610810725}
+  - component: {fileID: 1610810727}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -513,6 +540,35 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+--- !u!114 &1610810727
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1610810724}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 474bcb49853aa07438625e644c072ee6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.RenderPipelines.Universal.Runtime::UnityEngine.Rendering.Universal.UniversalAdditionalLightData
+  m_UsePipelineSettings: 1
+  m_AdditionalLightsShadowResolutionTier: 2
+  m_CustomShadowLayers: 0
+  m_LightCookieSize: {x: 1, y: 1}
+  m_LightCookieOffset: {x: 0, y: 0}
+  m_SoftShadowQuality: 0
+  m_RenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_ShadowRenderingLayersMask:
+    serializedVersion: 0
+    m_Bits: 1
+  m_Version: 4
+  m_LightLayerMask: 1
+  m_ShadowLayerMask: 1
+  m_RenderingLayers: 1
+  m_ShadowRenderingLayers: 1
 --- !u!1 &2119543142
 GameObject:
   m_ObjectHideFlags: 0
@@ -529,7 +585,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &2119543143
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -546,8 +602,34 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 7a3109f3e70782546918cbc8d2ad471b, type: 3}
   flockSize: 100
   startingPosRadius: 5
-  neighborDetectionRadius: 3
-  neighborAvoidanceRadius: 1
+  minBoidSize: 0.1
+  maxBoidSize: 1
+  sizeDistribution:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0.0012207031
+      inSlope: 0.1595383
+      outSlope: 0.1595383
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0.30992228
+    - serializedVersion: 3
+      time: 0.9915161
+      value: 0.5
+      inSlope: 2
+      outSlope: 2
+      tangentMode: 0
+      weightedMode: 0
+      inWeight: 0
+      outWeight: 0
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  neighborDetectionRadius: 10
+  neighborAvoidanceRadius: 0.5
   minSpeed: 2
   maxSpeed: 5
   boxCenter: {x: 0, y: 0, z: 0}
