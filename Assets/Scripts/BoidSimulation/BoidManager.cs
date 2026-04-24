@@ -27,9 +27,9 @@ public class BoidManager : MonoBehaviour
     [SerializeField][Range (0.0f, 10.0f)] float targetWeight;
 
     [Header("Boid rules settings")]
-    [SerializeField][Range(0.0f, 10.0f)] float separationWeight;
-    [SerializeField][Range(0.0f, 10.0f)] float alignmentWeight;
-    [SerializeField][Range(0.0f, 10.0f)] float cohesionWeight;
+    [SerializeField][Range(0.0f, 50.0f)] float separationWeight;
+    [SerializeField][Range(0.0f, 50.0f)] float alignmentWeight;
+    [SerializeField][Range(0.0f, 50.0f)] float cohesionWeight;
 
     ComputeBuffer boidBuffer;
 
@@ -85,7 +85,7 @@ public class BoidManager : MonoBehaviour
         int kernel = computeShader.FindKernel("CSMain");
         computeShader.SetBuffer(kernel, "_boidBuffer", boidBuffer);
 
-        // Pass parameters to the compute shader
+        // Send parameters to the compute shader
         computeShader.SetFloat("_DeltaTime", Time.deltaTime);
         computeShader.SetInt("_BoidCount", flockSize);
         computeShader.SetFloat("_NeighborRadius", neighborDetectionRadius);

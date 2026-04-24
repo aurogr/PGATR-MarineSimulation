@@ -113,8 +113,8 @@ Shader "PGATR/Fish"
             }
     
 
-            float _FlapSpeedToVelocityRelation;
-            float _FlapAmplitudeToSpeedRelation;
+            float _WiggleSpeedToVelocityRelation;
+            float _WiggleAmplitudeToVelocityRelation;
             float _SizeMin;
             float _SizeMax;
 
@@ -132,10 +132,10 @@ Shader "PGATR/Fish"
 
                 // Animation
                 float maxWiggleSpeed = 5.0; 
-                float wiggleSpeed = min(speed * _FlapSpeedToVelocityRelation, maxWiggleSpeed);
+                float wiggleSpeed = min(speed * _WiggleSpeedToVelocityRelation, maxWiggleSpeed);
 
                 float maxWiggleAmp = 0.4;
-                float wiggleAmp = min(speed * _FlapAmplitudeToSpeedRelation, maxWiggleAmp);
+                float wiggleAmp = min(speed * _WiggleAmplitudeToVelocityRelation, maxWiggleAmp);
 
                 geometryOutput o;
                 float bodyX[7] = {0.0, 0.15, 0.50, 0.7, 0.8, 0.9, 1.0};

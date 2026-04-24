@@ -70,7 +70,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             neighborCount++;
             
             sumNeighborVelocities += _boidBuffer[i].velocity;
-            sumNeighborPositions += _boidBuffer[i].position;
+            sumNeighborPositions += iPos;
             
             // Separation force (stronger the closer the neighbour is)
             const float ths_dist = max(_NeighbourAvoidanceRadius, iDist);
@@ -114,8 +114,8 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     // Cohesion and Alignment force
     if (neighborCount != 0)
     {
-        float3 avgPos = sumNeighborPositions / neighborCount;
-        float3 avgVelocity = sumNeighborVelocities / neighborCount;
+        float3 avgPos = sumNeighborPositions / (float) neighborCount;
+        float3 avgVelocity = sumNeighborVelocities / (float)neighborCount;
         force += _CohesionWeight * (avgPos - boid.position);
         force += _AlignmentWeight * (avgVelocity - boid.velocity);
     }
@@ -124,9 +124,9 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     force += _SeparationWeight * separationForce;
 
     // ------- Update pos/vel -----------
-    // Update speed
-    boid.velocity += force * _DeltaTime;
     
+    // Update position
+    boid.position += boid.velocity * _DeltaTime;
     // Clamp speed
     float speed = length(boid.velocity);
     if (speed > _MaxSpeed)
@@ -134,8 +134,8 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     else if (speed < _MinSpeed)
         boid.velocity = (boid.velocity / speed) * _MinSpeed;
     
-    // Update position
-    boid.position += boid.velocity * _DeltaTime;
+    // Update speed
+    boid.velocity += force * _DeltaTime;
     
     // Write back to buffer
     _boidBuffer[id.x] = boid;
