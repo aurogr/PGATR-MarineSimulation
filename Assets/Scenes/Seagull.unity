@@ -244,13 +244,19 @@ MonoBehaviour:
   computeShader: {fileID: 7200000, guid: 7a3109f3e70782546918cbc8d2ad471b, type: 3}
   flockSize: 100
   startingPosRadius: 10
-  neighborRadius: 0
-  avoidanceRadius: 0
+  neighborDetectionRadius: 10
+  neighborAvoidanceRadius: 5
   minSpeed: 2
   maxSpeed: 5
-  separationWeight: 0
-  alignmentWeight: 0
-  cohesionWeight: 0
+  boxCenter: {x: 0, y: 0, z: 0}
+  boxSize: {x: 20, y: 20, z: 20}
+  boundaryWeight: 1
+  followTarget: 0
+  target: {fileID: 557442891}
+  targetWeight: 0
+  separationWeight: 2
+  alignmentWeight: 3
+  cohesionWeight: 2
 --- !u!4 &338487620
 Transform:
   m_ObjectHideFlags: 0

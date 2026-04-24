@@ -10,10 +10,20 @@ public class BoidManager : MonoBehaviour
     [SerializeField] float startingPosRadius;
 
     [Header("Simulation settings")]
-    [SerializeField] float neighborRadius;
-    [SerializeField] float avoidanceRadius;
+    [SerializeField] float neighborDetectionRadius;
+    [SerializeField] float neighborAvoidanceRadius;
     [SerializeField] float minSpeed;
     [SerializeField] float maxSpeed;
+
+    [Header("Boundary settings")]
+    [SerializeField] Vector3 boxCenter;
+    [SerializeField] Vector3 boxSize;
+    [SerializeField] float boundaryWeight;
+
+    [Header("Target following settings")]
+    [SerializeField] bool followTarget;
+    [SerializeField] Transform target;
+    [SerializeField] float targetWeight;
 
     [Header("Boid rules settings")]
     [SerializeField] float separationWeight;
@@ -70,12 +80,22 @@ public class BoidManager : MonoBehaviour
         computeShader.SetBuffer(kernel, "_boidBuffer", boidBuffer);
         computeShader.Dispatch(kernel, Mathf.CeilToInt(flockSize / 64f), 1, 1);
 
+        // Pass parameters to the compute shader
         computeShader.SetFloat("_DeltaTime", Time.deltaTime);
         computeShader.SetInt("_BoidCount", flockSize);
-        computeShader.SetFloat("_NeighborRadius", neighborRadius);
-        computeShader.SetFloat("_AvoidanceRadius", avoidanceRadius);
+        computeShader.SetFloat("_NeighborRadius", neighborDetectionRadius);
+        computeShader.SetFloat("_AvoidanceRadius", neighborAvoidanceRadius);
         computeShader.SetFloat("_MinSpeed", minSpeed);
         computeShader.SetFloat("_MaxSpeed", maxSpeed);
+
+        computeShader.SetVector("_BoxCenter", boxCenter);
+        computeShader.SetVector("_BoxSize", boxSize);
+        computeShader.SetFloat("_BoundaryWeight", boundaryWeight);
+
+        computeShader.SetBool("_FollowTarget", followTarget);
+        computeShader.SetVector("_TargetPosition", target.position);
+        computeShader.SetFloat("_TargetWeight", targetWeight);
+
         computeShader.SetFloat("_SeparationWeight", separationWeight);
         computeShader.SetFloat("_AlignmentWeight", alignmentWeight);
         computeShader.SetFloat("_CohesionWeight", cohesionWeight);
