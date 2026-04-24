@@ -4,11 +4,8 @@ Shader "PGATR/Fish"
     {
 		[Header(Shading)]
         _MainTex("Texture", 2D) = "white" {}
-		_SizeMin("SizeMin", Float) = 0.2
-		_SizeMax("SizeMax", Float) = 0.5
-        _BodyCrease("Body Crease", Float) = 0.5
-		_FlapSpeedToVelocityRelation ("Flap Speed To Velocity Relation", Float) = 2
-		_FlapAmplitudeToSpeedRelation ("Flap Amplitude To Speed Relation", Float) = 0.2
+		_WiggleSpeedToVelocityRelation ("Wiggle Speed To Velocity Relation", Float) = 0.8
+		_WiggleAmplitudeToVelocityRelation ("Wiggle Amplitude To Velocity Relation", Float) = 0.1
     }
 
     CGINCLUDE
@@ -48,6 +45,7 @@ Shader "PGATR/Fish"
 	struct Boid{
 		float3 position;
 		float3 velocity;
+        float size;
 	};
     
     StructuredBuffer<Boid> _BoidBuffer;
@@ -55,7 +53,7 @@ Shader "PGATR/Fish"
 	struct vertexOutput {
         float4 pos : SV_POSITION;
         float3 velocity : TEXCOORD0;
-        float id : TEXCOORD2;
+        float size : TEXCOORD1;
     };
 
 	struct geometryOutput {
@@ -110,7 +108,7 @@ Shader "PGATR/Fish"
                 Boid boid = _BoidBuffer[id];
                 o.pos = float4(boid.position, 1.0);
                 o.velocity = boid.velocity;
-                o.id = id;
+                o.size = boid.size;
                 return o;
             }
     
@@ -119,7 +117,6 @@ Shader "PGATR/Fish"
             float _FlapAmplitudeToSpeedRelation;
             float _SizeMin;
             float _SizeMax;
-            float _BodyCrease;
 
             [maxvertexcount(14)]
             void geo(point vertexOutput IN[1], inout TriangleStream<geometryOutput> triStream)
@@ -129,41 +126,40 @@ Shader "PGATR/Fish"
                 float3 worldUp = float3(0, 1, 0);
                 float3 right = normalize(cross(worldUp, fwd));
                 float3 localUp = cross(fwd, right);
+                float size = IN[0].size;
 
-                float s = lerp(_SizeMin, _SizeMax, rand(float(IN[0].id)));
-                float fishLength = 2.0 * s; // the fish is longer than wider
+                float fishLength = 2.0 * size; // the fish is longer than wider
 
-                // --- ANIMATION ---
-                float wiggleSpeed = min(speed * _FlapSpeedToVelocityRelation, 12.0);
-                float wiggleAmp = speed * _FlapAmplitudeToSpeedRelation;
+                // Animation
+                float maxWiggleSpeed = 5.0; 
+                float wiggleSpeed = min(speed * _FlapSpeedToVelocityRelation, maxWiggleSpeed);
+
+                float maxWiggleAmp = 0.4;
+                float wiggleAmp = min(speed * _FlapAmplitudeToSpeedRelation, maxWiggleAmp);
 
                 geometryOutput o;
-                // Define 7 segments along the fish (Nose to Tail)
-                // ribX: position along length (0=Nose, 1=Tail Tip)
-                // ribH: half-height of the fish at that point (silhouette)
-                float ribX[5] = {0.0, 0.15, 0.50, 0.85, 1.0};
+                float bodyX[7] = {0.0, 0.15, 0.50, 0.7, 0.8, 0.9, 1.0};
 
-                for (int i = 0; i < 5; i++)
+                for (int i = 0; i < 7; i++)
                 {
-                    float segmentPercent = ribX[i];
+                    float segmentPercent = bodyX[i];
                     float3 segmentPos = IN[0].pos.xyz - (fwd * segmentPercent * fishLength);
 
-                    // --- THE WIGGLE ---
-                    // 1. We use segmentPercent * 5.0 to create a traveling wave (tail follows head)
-                    // 2. We multiply by segmentPercent so the nose stays still and the tail wiggles most
+                    // traveling wave, with a speed based on the boid's velocity, and an amplitude that increases towards the tail
+                    // phase = time * speed - distance along the body, so the wave travels from head to tail
                     float wiggle = sin(_Time.y * wiggleSpeed - segmentPercent * 5.0) * wiggleAmp * segmentPercent;
         
-                    // Shift the segment left/right
+                    // Shift the segment
                     segmentPos += right * wiggle;
 
-                    // Top Vertex (Dorsal side)
+                    // Top Vertex
                     o.uv = float2(segmentPercent, 1.0);
-                    o.pos = UnityObjectToClipPos(float4(segmentPos + localUp * 0.5, 1));
+                    o.pos = UnityObjectToClipPos(float4(segmentPos + localUp * size, 1));
                     triStream.Append(o);
 
-                    // Bottom Vertex (Ventral side)
+                    // Bottom Vertex
                     o.uv = float2(segmentPercent, 0.0);
-                    o.pos = UnityObjectToClipPos(float4(segmentPos - localUp * 0.5, 1));
+                    o.pos = UnityObjectToClipPos(float4(segmentPos - localUp * size, 1));
                     triStream.Append(o);
                 }
 
