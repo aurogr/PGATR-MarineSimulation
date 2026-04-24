@@ -13,10 +13,8 @@ public class FlyCamera : MonoBehaviour
 
     void Start()
     {
-        // Lock the cursor to the center of the screen
-        Cursor.lockState = CursorLockMode.Locked;
+        LockCursor();
 
-        // Initialize rotation based on current transform
         Vector3 rot = transform.localRotation.eulerAngles;
         rotationX = rot.y;
         rotationY = -rot.x;
@@ -24,19 +22,37 @@ public class FlyCamera : MonoBehaviour
 
     void Update()
     {
-        HandleRotation();
-        HandleMovement();
-
-        // Escape to unlock mouse
         if (Keyboard.current.escapeKey.wasPressedThisFrame)
-            Cursor.lockState = CursorLockMode.None;
+        {
+            UnlockCursor();
+        }
+        if (Mouse.current.leftButton.wasPressedThisFrame && Cursor.lockState == CursorLockMode.None)
+        {
+            LockCursor();
+        }
+        if (Cursor.lockState == CursorLockMode.Locked)
+        {
+            HandleRotation();
+            HandleMovement();
+        }
+    }
+
+    void LockCursor()
+    {
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
+    }
+
+    void UnlockCursor()
+    {
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
     }
 
     void HandleRotation()
     {
         if (Mouse.current == null) return;
 
-        // Get mouse delta from the new input system
         Vector2 mouseDelta = Mouse.current.delta.ReadValue() * lookSensitivity;
 
         rotationX += mouseDelta.x;
@@ -52,19 +68,16 @@ public class FlyCamera : MonoBehaviour
 
         Vector3 direction = Vector3.zero;
 
-        // Standard WASD
         if (Keyboard.current.wKey.isPressed) direction += transform.forward;
         if (Keyboard.current.sKey.isPressed) direction -= transform.forward;
         if (Keyboard.current.aKey.isPressed) direction -= transform.right;
         if (Keyboard.current.dKey.isPressed) direction += transform.right;
 
-        // Vertical Movement (Q/E or Space/Ctrl)
         if (Keyboard.current.eKey.isPressed || Keyboard.current.spaceKey.isPressed)
             direction += Vector3.up;
         if (Keyboard.current.qKey.isPressed || Keyboard.current.leftCtrlKey.isPressed)
             direction -= Vector3.up;
 
-        // Sprinting
         float currentSpeed = moveSpeed;
         if (Keyboard.current.leftShiftKey.isPressed)
             currentSpeed *= fastMoveFactor;

@@ -68,9 +68,9 @@ Material:
     - _DetailNormalMapScale: 1
     - _DstBlend: 0
     - _FlapAmplitude: 0.5
-    - _FlapAmplitudeToSpeedRelation: 0.1
+    - _FlapAmplitudeToSpeedRelation: 0.05
     - _FlapSpeed: 10
-    - _FlapSpeedToVelocityRelation: 0.8
+    - _FlapSpeedToVelocityRelation: 0.5
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1

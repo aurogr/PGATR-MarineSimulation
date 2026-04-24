@@ -139,12 +139,12 @@ Shader "PGATR/Seagull"
 
                 // Animation
                 float rawFlapSpeed = speed * _FlapSpeedToVelocityRelation;
-                float maxFlapSpeed = 12.0;
+                float maxFlapSpeed = 15.0;
                 float flapSin = sin(_Time.y * min(rawFlapSpeed, maxFlapSpeed));
 
                 float maxAngle = 0.8;
                 float baseAmp = speed * _FlapAmplitudeToSpeedRelation;
-                float amp = speed * _FlapAmplitudeToSpeedRelation;
+                float amp =  min(maxAngle, baseAmp);
 
                 // Rotation Matrices
                 float3x3 rotL = AngleAxis3x3(flapSin * amp, fwd);

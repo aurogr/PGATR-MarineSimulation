@@ -16,7 +16,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &682748007849503761
 Transform:
   m_ObjectHideFlags: 0
@@ -47,9 +47,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FlockController
   renderMat: {fileID: 2100000, guid: d89d1d611f90c4545817dab967870e08, type: 2}
   computeShader: {fileID: 7200000, guid: 7a3109f3e70782546918cbc8d2ad471b, type: 3}
-  flockSize: 100
-  minBoidSize: 0.1
-  maxBoidSize: 1
+  flockSize: 30
+  minBoidSize: 5
+  maxBoidSize: 10
   sizeDistribution:
     serializedVersion: 2
     m_Curve:
@@ -74,18 +74,18 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
-  neighborDetectionRadius: 3
+  neighborDetectionRadius: 20
   neighborAvoidanceRadius: 1
-  minSpeed: 2
-  maxSpeed: 5
-  boxSize: {x: 20, y: 20, z: 20}
+  minSpeed: 5
+  maxSpeed: 10
+  boxSize: {x: 80, y: 5, z: 80}
   boundaryWeight: 1
-  followTarget: 0
+  followTarget: 1
   target: {fileID: 1781731495711782321}
-  targetWeight: 1
-  separationWeight: 2
-  alignmentWeight: 3
-  cohesionWeight: 2
+  targetWeight: 2
+  separationWeight: 5
+  alignmentWeight: 10
+  cohesionWeight: 10
 --- !u!1 &8258119813861216081
 GameObject:
   m_ObjectHideFlags: 0
