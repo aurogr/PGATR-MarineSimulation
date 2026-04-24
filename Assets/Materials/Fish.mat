@@ -80,7 +80,7 @@ Material:
     - _Parallax: 0.02
     - _Size: 0.5
     - _SizeMax: 1
-    - _SizeMin: 0.1
+    - _SizeMin: 0.01
     - _SizeRandom: 0.02
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
