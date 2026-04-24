@@ -126,15 +126,15 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     // Update speed
     boid.velocity += force * _DeltaTime;
     
-    // Update position
-    boid.position += boid.velocity * _DeltaTime;
-    
     // Clamp speed
     float speed = length(boid.velocity);
     if (speed > _MaxSpeed)
         boid.velocity = (boid.velocity / speed) * _MaxSpeed;
     else if (speed < _MinSpeed)
         boid.velocity = (boid.velocity / speed) * _MinSpeed;
+    
+    // Update position
+    boid.position += boid.velocity * _DeltaTime;
     
     // Write back to buffer
     _boidBuffer[id.x] = boid;

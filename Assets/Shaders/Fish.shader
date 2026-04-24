@@ -1,4 +1,4 @@
-Shader "PGATR/Seagull"
+Shader "PGATR/Fish"
 {
     Properties
     {
@@ -125,74 +125,47 @@ Shader "PGATR/Seagull"
             void geo(point vertexOutput IN[1], inout TriangleStream<geometryOutput> triStream)
             {
                 float speed = length(IN[0].velocity);
-                float3 pos = IN[0].pos.xyz;
                 float3 fwd = normalize(IN[0].velocity);
                 float3 worldUp = float3(0, 1, 0);
                 float3 right = normalize(cross(worldUp, fwd));
                 float3 localUp = cross(fwd, right);
 
-                // Random Size between min and max
                 float s = lerp(_SizeMin, _SizeMax, rand(float(IN[0].id)));
-    
-                float bodyW = 0.2 * s;
-                float creaseDepth = _BodyCrease * s;
-                float wingW = 0.15 * s;
-                float tipW  = 0.25 * s;
-                float chord = 0.4 * s;
+                float fishLength = 2.0 * s; // the fish is longer than wider
 
-                // Animation
-                float rawFlapSpeed = speed * _FlapSpeedToVelocityRelation;
-                float maxFlapSpeed = 12.0;
-                float flapSin = sin(_Time.y * min(rawFlapSpeed, maxFlapSpeed));
-
-                float maxAngle = 0.8;
-                float baseAmp = speed * _FlapAmplitudeToSpeedRelation;
-                float amp = speed * _FlapAmplitudeToSpeedRelation;
-
-                // Rotation Matrices
-                float3x3 rotL = AngleAxis3x3(flapSin * amp, fwd);
-                float3x3 rotR = AngleAxis3x3(-flapSin * amp, fwd);
-                float3x3 tipLRot = mul(rotL, rotL);
-                float3x3 tipRRot = mul(rotR, rotR);
+                // --- ANIMATION ---
+                float wiggleSpeed = min(speed * _FlapSpeedToVelocityRelation, 12.0);
+                float wiggleAmp = speed * _FlapAmplitudeToSpeedRelation;
 
                 geometryOutput o;
+                // Define 7 segments along the fish (Nose to Tail)
+                // ribX: position along length (0=Nose, 1=Tail Tip)
+                // ribH: half-height of the fish at that point (silhouette)
+                float ribX[5] = {0.0, 0.15, 0.50, 0.85, 1.0};
 
-                // Construction of the triStream, from left wing to right wing
+                for (int i = 0; i < 5; i++)
+                {
+                    float segmentPercent = ribX[i];
+                    float3 segmentPos = IN[0].pos.xyz - (fwd * segmentPercent * fishLength);
 
-                // Left wing tip vertices
-                float3 p1 = mul(tipLRot, -right * (bodyW + wingW + tipW));
-                o.uv = float2(0.0, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p1 + fwd * chord, 1)); triStream.Append(o);
-                o.uv = float2(0.0, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p1 - fwd * chord, 1)); triStream.Append(o);
+                    // --- THE WIGGLE ---
+                    // 1. We use segmentPercent * 5.0 to create a traveling wave (tail follows head)
+                    // 2. We multiply by segmentPercent so the nose stays still and the tail wiggles most
+                    float wiggle = sin(_Time.y * wiggleSpeed - segmentPercent * 5.0) * wiggleAmp * segmentPercent;
+        
+                    // Shift the segment left/right
+                    segmentPos += right * wiggle;
 
-                // Left wing elbow vertices
-                float3 p2 = mul(rotL, -right * (bodyW + wingW));
-                o.uv = float2(0.25, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p2 + fwd * chord, 1)); triStream.Append(o);
-                o.uv = float2(0.25, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p2 - fwd * chord, 1)); triStream.Append(o);
+                    // Top Vertex (Dorsal side)
+                    o.uv = float2(segmentPercent, 1.0);
+                    o.pos = UnityObjectToClipPos(float4(segmentPos + localUp * 0.5, 1));
+                    triStream.Append(o);
 
-                // Left wing shoulder vertices
-                float3 p3 = -right * bodyW;
-                o.uv = float2(0.4, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p3 + fwd * chord, 1)); triStream.Append(o);
-                o.uv = float2(0.4, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p3 - fwd * chord, 1)); triStream.Append(o);
-
-                // Spine
-                float3 p4 = -localUp * creaseDepth; 
-                o.uv = float2(0.5, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p4 + fwd * chord, 1)); triStream.Append(o);
-                o.uv = float2(0.5, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p4 - fwd * chord, 1)); triStream.Append(o);
-
-                // Right wing shoulder vertices
-                float3 p5 = right * bodyW;
-                o.uv = float2(0.6, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p5 + fwd * chord, 1)); triStream.Append(o);
-                o.uv = float2(0.6, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p5 - fwd * chord, 1)); triStream.Append(o);
-
-                // Right wing elbow vertices
-                float3 p6 = mul(rotR, right * (bodyW + wingW));
-                o.uv = float2(0.75, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p6 + fwd * chord, 1)); triStream.Append(o);
-                o.uv = float2(0.75, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p6 - fwd * chord, 1)); triStream.Append(o);
-
-                // Right wing tip
-                float3 p7 = mul(tipRRot, right * (bodyW + wingW + tipW));
-                o.uv = float2(1.0, 1.0); o.pos = UnityObjectToClipPos(float4(pos + p7 + fwd * chord, 1)); triStream.Append(o);
-                o.uv = float2(1.0, 0.0); o.pos = UnityObjectToClipPos(float4(pos + p7 - fwd * chord, 1)); triStream.Append(o);
+                    // Bottom Vertex (Ventral side)
+                    o.uv = float2(segmentPercent, 0.0);
+                    o.pos = UnityObjectToClipPos(float4(segmentPos - localUp * 0.5, 1));
+                    triStream.Append(o);
+                }
 
                 triStream.RestartStrip();
             }
