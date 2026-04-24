@@ -42,5 +42,44 @@ void GradientNoise_float(float2 UV, float2 Scale, out float Out)
 	fp = fp * fp * fp * (fp * (fp * 6 - 15) + 10);
 	Out = lerp(lerp(d00, d01, fp.y), lerp(d10, d11, fp.y), fp.x) + 0.5;
 }
+
+// SIMPLEX
+float value(float2 uv)
+{
+	float2 i = floor(uv);
+	float2 f = frac(uv);
+	float2 smooth = f * f * (3.0 - 2.0 * f);
+	//uv = abs(frac(uv) - 0.5);
+	float2 c0 = i + float2(0.0, 0.0);
+	float2 c1 = i + float2(1.0, 0.0);
+	float2 c2 = i + float2(0.0, 1.0);
+	float2 c3 = i + float2(1.0, 1.0);
+	float r0; random_2to1(c0, r0);
+	float r1; random_2to1(c1, r1);
+	float r2; random_2to1(c2, r2);
+	float r3; random_2to1(c3, r3);
+	float bottomOfGrid = lerp(r0, r1, smooth.x);
+	float topOfGrid = lerp(r2, r3, smooth.x);
+	float t = lerp(bottomOfGrid, topOfGrid, smooth.y);
+	return t;
+}
+
+void SimpleNoise_float(float2 UV, float Scale, out float Out)
+{
+	float freq, amp;
+	Out = 0;
+
+	freq = pow(2, float(0));
+	amp = pow(0.5, float(3 - 0));
+	Out += value(float2(UV.xy * (Scale / freq))) * amp;
+
+	freq = pow(2.0, float(1));
+	amp = pow(0.5, float(3 - 1));
+	Out += value(float2(UV.xy * (Scale / freq))) * amp;
+
+	freq = pow(2, float(2));
+	amp = pow(0.5, float(3 - 2));
+	Out += value(float2(UV.xy * (Scale / freq))) * amp;
+}
  
 #endif //NOISE_HLSL_INCLUDED

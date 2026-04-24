@@ -2,6 +2,7 @@ Shader "Unlit/Water"
 {
     Properties
     {
+        _aa("aa", Float) = 1
         [Header(Tessellation)]
 
         _TessFactor("Tesselation Factor", Float) = 1
@@ -18,17 +19,24 @@ Shader "Unlit/Water"
 
         //REFRACTION, DEPTH
         _Depth_Fade_Distance("Depth", Float) = 1.18
-        //COLOR
-        _Deep_Color("Deep Color", Color) = (0.1335885, 0.1953748, 0.3584906, 1)
-        _Shallow_Color("Shallow Color", Color) = (0.1335885, 0.1953748, 0.3584906, 1)
-        _Horizon_Distance("Horizon Distance", Float) = 1.7
-        _Horizon_Color("Horizon Color", Color) = (0, 0.1109023, 0.6313726, 0)
-        //FOAM
-        _FoamScale("Foam Scale", Float) = 2.11
-        _Foam_Distortion("Foam Distortion", Float) = 0.91
-        _Foam_Color("Foam Color", Color) = (1, 1, 1, 0)
-        _Foam_Blend("Foam Blend", Float) = 0.52
-        _Foam_Cutoff("Foam Depth", Float) = 0
+            //LIGHTING
+            _Normal_Scale("Normal Scale", Float) = 0.31
+            _Normal_Strength("Normal Strength", Range(0,10)) = 0.1
+            _Roughness("Roughness", Range(0,1)) = 0
+            _Specular("Specular", Range(0,10)) = 0
+            //STREAM 
+            _StreamSpeed("Stream Speed", Float) = 0
+            _StreamDirection("Stream Direction", Float) = 0
+            //COLOR
+            _Deep_Color("Deep Color", Color) = (0.1335885, 0.1953748, 0.3584906, 1)
+            _Horizon_Distance("Horizon Distance", Float) = 1.7
+            _Horizon_Color("Horizon Color", Color) = (0, 0.1109023, 0.6313726, 0)
+            //FOAM
+            _FoamScale("Foam Scale", Float) = 2.11
+            _Foam_Distortion("Foam Distortion", Float) = 0.91
+            _Foam_Color("Foam Color", Color) = (1, 1, 1, 0)
+            _Foam_Blend("Foam Blend", Float) = 0.52
+            _Foam_Cutoff("Foam Depth", Float) = 0
     }
     SubShader
     {
@@ -59,6 +67,7 @@ Shader "Unlit/Water"
             #include "Assets/Shaders/Noise.hlsl" // to generate heightmap
             #include "Assets/Shaders/WaterFuncs.hlsl"
             #include "Assets/Shaders/WaterLighting.hlsl"
+            #define PI 3.14159265359
 
 
             // tessellation
@@ -71,16 +80,31 @@ Shader "Unlit/Water"
 
             float heightmap;
             // water
+            float _aa;
             float _Depth_Fade_Distance;
             float4 _Deep_Color;
-            float4 _Shallow_Color;
             float _Horizon_Distance;
             float4 _Horizon_Color;
+            float _StreamSpeed;
+            float _StreamDirection;
             float _FoamScale;
             float _Foam_Distortion;
             float4 _Foam_Color;
             float _Foam_Blend;
             float _Foam_Cutoff;
+            float _Normal_Strength;
+            float _Normal_Scale;
+            float _Roughness;
+            float _Specular;
+
+            // URP textures
+            float4 _CameraDepthTexture_ST;
+            sampler2D _CameraDepthTexture;
+            sampler2D _CameraOpaqueTexture;
+            float4 _CameraOpaqueTexture_ST;
+            //TBN matrix
+            float3x3 TBN_matrix;
+            float2 positionNDC;
 
             ////////////////////////////////////////////
             //////////////// VERTEX STAGE //////////////
@@ -90,6 +114,7 @@ Shader "Unlit/Water"
                 float3 positionOS : POSITION;
                 float3 normalOS : NORMAL;
                 float2 uv : TEXCOORD0;
+                float4 tangentOS : TANGENT;
 
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -98,6 +123,8 @@ Shader "Unlit/Water"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : INTERNALTESSPOS;
                 float3 normalWS : NORMAL;
+                float3 tangentWS : TEXCOORD1;
+                float3 bitangentWS : TEXCOORD2;
                 float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -110,11 +137,13 @@ Shader "Unlit/Water"
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
 
                 VertexPositionInputs posInputs = GetVertexPositionInputs(input.positionOS);
-                VertexNormalInputs normalInputs = GetVertexNormalInputs(input.normalOS);
+                VertexNormalInputs normalInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
 
                 output.positionWS = posInputs.positionWS;
                 output.positionCS = posInputs.positionCS;
                 output.normalWS = normalInputs.normalWS;
+                output.tangentWS = normalInputs.tangentWS;
+                output.bitangentWS = normalInputs.bitangentWS;
                 output.uv = input.uv;
                 return output;
             }
@@ -215,6 +244,8 @@ Shader "Unlit/Water"
 
             struct Interpolators {
                 float3 normalWS : TEXCOORD0;
+                float3 tangentWS : TEXCOORD3;
+                float3 bitangentWS : TEXCOORD4;
                 float3 positionWS : TEXCOORD1;
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD2;
@@ -235,6 +266,8 @@ Shader "Unlit/Water"
 
                 float3 positionWS = BARYCENTRIC_INTERPOLATE(positionWS);
                 float3 normalWS = BARYCENTRIC_INTERPOLATE(normalWS);
+                float3 tangentWS = BARYCENTRIC_INTERPOLATE(tangentWS);
+                float3 bitangentWS = BARYCENTRIC_INTERPOLATE(bitangentWS);
 
                 // heightmap
                 float2 uv = BARYCENTRIC_INTERPOLATE(uv);
@@ -247,6 +280,8 @@ Shader "Unlit/Water"
                 output.positionCS = TransformWorldToHClip(positionWS);
                 output.normalWS = normalWS;
                 output.positionWS = positionWS;
+                output.tangentWS = tangentWS;
+                output.bitangentWS = bitangentWS;
 
                 return output;
             }
@@ -255,14 +290,123 @@ Shader "Unlit/Water"
             //////////////// FRAGMENT STAGE ///////////////
             ///////////////////////////////////////////////
 
+            float2 PannedUVs(Interpolators i, float Direction, float Scale, float Speed)
+            {
+                float dir = (Direction * 2 - 1) * PI;
+                float time = _Time.y * Speed;
+                float2 uv = i.uv * Scale;
+
+                return uv + time * normalize(float2(cos(dir), sin(dir)));
+            }
+
+            float3 NormalWaves(Interpolators i)
+            {
+                float direction = _StreamDirection;
+
+                float2 uv = PannedUVs(i, direction, rcp(_Normal_Scale * 0.5f), _StreamSpeed * 0.5f);
+                float noise; SimpleNoise_float(uv, 500, noise);
+                float3 normal1; NormalFromHeight_float3(noise, _Normal_Strength * 0.1, i.positionWS, TBN_matrix, normal1);
+
+                uv = PannedUVs(i, direction, rcp(_Normal_Scale), _StreamSpeed);
+                noise; SimpleNoise_float(uv, 500, noise);
+                float3 normal2; NormalFromHeight_float3(noise, _Normal_Strength * 0.1, i.positionWS, TBN_matrix, normal2);
+
+                return SafeNormalize(float3(normal1.rg + normal2.rg, normal1.b * normal2.b));
+            }
+
+            float SceneDepth(float2 uv)
+            {
+                float depthNDC = tex2D(_CameraDepthTexture, uv).r;
+                return LinearEyeDepth(depthNDC, _ZBufferParams);
+            }
+
+            float3 WorldSpaceScenePosition(float2 UV, Interpolators i)
+            {
+                float3 view = _WorldSpaceCameraPos.xyz - GetAbsolutePositionWS(i.positionWS);
+                float depth = SceneDepth(UV);
+                float3 res = (-view / i.positionCS.w) * depth + _WorldSpaceCameraPos;
+                return res;
+            }
+
+            float2 RefractedUVs(Interpolators i, float3 UV)
+            {
+                float2 positionCS = i.positionCS.xy / _ScaledScreenParams.xy;// SCREEN POSITION 
+
+                float3 uvWS = TransformTangentToWorldDir(UV, TBN_matrix);
+                uvWS = TransformWorldToViewDir(uvWS, true);
+                float2 refractedUVs = positionCS.xy + (uvWS.xy * 0.2);
+
+                float3 scenePosWS = WorldSpaceScenePosition(refractedUVs, i);
+                float yDifference = (i.positionWS - scenePosWS).y;
+                float2 res = (yDifference <= 0) ? positionCS : refractedUVs;
+
+                return res;
+            }
+
+            float Depth_WS(Interpolators i, float2 UV)
+            {
+                float3 dif = i.positionWS - WorldSpaceScenePosition(UV, i);
+                float depth = saturate(exp(-dif.y / _Depth_Fade_Distance));
+                return depth;
+            }
+
+            float4 EdgeFoam(Interpolators i, float refractedDepth)
+            {
+                // noise
+                float2 pannedUVs = PannedUVs(i, _StreamDirection, _FoamScale, _StreamSpeed);
+                float2 distortedUVs; DistortUV_float(pannedUVs, _Foam_Distortion, distortedUVs);
+                float gradientNoise; GradientNoise_float(distortedUVs, 10, gradientNoise);
+
+                // mask
+                float mask = pow(refractedDepth, _Foam_Cutoff);
+                return lerp(_Foam_Color, float4(0, 0, 0, 0), step(mask, gradientNoise));
+            }
+
+            float4 WaterDiffuse(Interpolators i, float2 UV, float Depth)
+            {
+                float4 waterColor = lerp(_Deep_Color, float4(0, 0, 0, 0), Depth);
+                float4 sceneColor = tex2D(_CameraOpaqueTexture, UV);
+
+                float fresnel = pow((1.0 - saturate(dot(normalize(i.normalWS), GetWorldSpaceNormalizeViewDir(i.positionWS)))), _Horizon_Distance);
+                float4 horizonLerp; HSVLerp_half(waterColor, _Horizon_Color, fresnel, horizonLerp);
+
+                return horizonLerp + (sceneColor * (1 - horizonLerp.a));
+            }
+
+            float4 WaterSpecular(Interpolators i, float3 normals)
+            {
+                normals = normalize(mul(normals, TBN_matrix));
+                float3 viewDir = _WorldSpaceCameraPos.xyz - GetAbsolutePositionWS(i.positionWS);
+
+                float3 mainLighting;  MainLighting_float(normals, i.positionWS, viewDir, _Roughness, _Specular * 10, mainLighting);
+                float3 additionalLighting; AdditionalLighting_float(normals, i.positionWS, viewDir, _Roughness, _Specular * 10, additionalLighting);
+
+                return float4(mainLighting + additionalLighting, 1);
+            }
 
             fixed4 frag(Interpolators i) : SV_Target
             {
-                float depth = 1 - normalize(i.positionWS.y + _Depth_Fade_Distance);
-            fixed4 a = lerp(_Shallow_Color, _Deep_Color, depth);
-                
-                fixed4 col = fixed4(depth.xxxx);
-                return a;
+                // TBN matrix
+                TBN_matrix = float3x3
+                (
+                    i.tangentWS,
+                    i.bitangentWS,
+                    i.normalWS
+                );
+
+                // Parameter adjustments
+                _StreamSpeed *= 0.01;
+                float depth = 1 - normalize(i.positionWS.y + _aa);
+
+                float3 normalWaves = NormalWaves(i);
+                float2 refractedUVs = RefractedUVs(i, normalWaves);
+                float refractedDepth = Depth_WS(i, refractedUVs);
+                float4 edgeFoam = EdgeFoam(i, refractedDepth);
+                float4 baseColor = WaterDiffuse(i, refractedUVs, refractedDepth);
+                float4 waterSpecular = WaterSpecular(i, normalWaves);
+                    
+                fixed4 col = baseColor + (edgeFoam * _Foam_Blend) + waterSpecular;
+                return col;
             }
 
             ENDHLSL
