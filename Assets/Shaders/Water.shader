@@ -1,21 +1,43 @@
-Shader "Unlit/Tesselation"
+Shader "Unlit/Water"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
-        _Color("Color",Color) = (1,1,1,1)
-        _TessEdge("Tesselation Edge", Vector) = (1,1,1,1)
-        _TessInside("Tesselation Inside",Float) = 1
-        _TessUniform("TesselationUniform", Range(1,64)) = 1
+        [Header(Tessellation)]
+
+        _TessFactor("Tesselation Factor", Float) = 1
+        _TessBias("Tesselation Bias",Float) = 1
+        _CullingTolerance("Culling Tolerance", Float) = 1
+
+        [Header(HeightMap)]
+
+        _Height("Height", Float) = 1
+        _Speed("Waves Speed",Float) = 1
+        _Scale("Waves Scale", Float) = 1
+
+        [Header(Water)]
+
+        //REFRACTION, DEPTH
+        _Depth_Fade_Distance("Depth", Float) = 1.18
+        //COLOR
+        _Deep_Color("Deep Color", Color) = (0.1335885, 0.1953748, 0.3584906, 1)
+        _Shallow_Color("Shallow Color", Color) = (0.1335885, 0.1953748, 0.3584906, 1)
+        _Horizon_Distance("Horizon Distance", Float) = 1.7
+        _Horizon_Color("Horizon Color", Color) = (0, 0.1109023, 0.6313726, 0)
+        //FOAM
+        _FoamScale("Foam Scale", Float) = 2.11
+        _Foam_Distortion("Foam Distortion", Float) = 0.91
+        _Foam_Color("Foam Color", Color) = (1, 1, 1, 0)
+        _Foam_Blend("Foam Blend", Float) = 0.52
+        _Foam_Cutoff("Foam Depth", Float) = 0
     }
     SubShader
     {
         Tags 
         { 
             "RenderPipeline"="UniversalPipeline"
-            "RenderType"="Opaque"
-            "Queue"="Geometry" 
-            "LightMode" = "UniversalForward"
+            "RenderType"="Transparent"
+            "Queue"="Transparent" 
+            //"LightMode" = "UniversalForward"
         }
         LOD 100
         Cull Off
@@ -33,14 +55,32 @@ Shader "Unlit/Tesselation"
 
             #include "HLSLSupport.cginc"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl" 
-            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+           // #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "Assets/Shaders/Noise.hlsl" // to generate heightmap
+            #include "Assets/Shaders/WaterFuncs.hlsl"
+            #include "Assets/Shaders/WaterLighting.hlsl"
 
-            sampler2D _MainTex;
-            float4 _MainTex_ST;
-            float _TessUniform;
-            float4 _TessEdge;
-            float _TessInside;
-            float4 _Color;
+
+            // tessellation
+            float _TessBias;
+            float _TessFactor;
+            float _CullingTolerance;
+            float _Height;
+            float _Speed;
+            float _Scale;
+
+            float heightmap;
+            // water
+            float _Depth_Fade_Distance;
+            float4 _Deep_Color;
+            float4 _Shallow_Color;
+            float _Horizon_Distance;
+            float4 _Horizon_Color;
+            float _FoamScale;
+            float _Foam_Distortion;
+            float4 _Foam_Color;
+            float _Foam_Blend;
+            float _Foam_Cutoff;
 
             ////////////////////////////////////////////
             //////////////// VERTEX STAGE //////////////
@@ -49,13 +89,16 @@ Shader "Unlit/Tesselation"
             struct Attributes {
                 float3 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                float2 uv : TEXCOORD0;
+
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
             struct TessellationControlPoint {
-                float4 positionWS : SV_POSITION;
+                float4 positionCS : SV_POSITION;
                 float3 positionWS : INTERNALTESSPOS;
                 float3 normalWS : NORMAL;
+                float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -72,6 +115,7 @@ Shader "Unlit/Tesselation"
                 output.positionWS = posInputs.positionWS;
                 output.positionCS = posInputs.positionCS;
                 output.normalWS = normalInputs.normalWS;
+                output.uv = input.uv;
                 return output;
             }
 
@@ -107,7 +151,7 @@ Shader "Unlit/Tesselation"
                 return p.x < lower.x || p.x > higher.x || p.y < lower.y || p.y > higher.y || p.z < lower.z || p.z > higher.z;
             }
             bool IsPointOutOfFrustum(float4 positionCS, float tolerance) {
-                float3 culling = positionCS.xy;
+                float3 culling = positionCS.xyz;
                 float w = positionCS.w;
                 // UNITY_RAW_FAR_CLIP_VALUE is either 0 or 1, depending on the graphics API. OpenGL uses 1, the rest mostly 0.
                 float3 lowerBounds = float3(-w - tolerance, -w - tolerance, -w * UNITY_RAW_FAR_CLIP_VALUE - tolerance);
@@ -129,11 +173,20 @@ Shader "Unlit/Tesselation"
                 #endif            
             }
 
-            bool shouldClipPatch(float4 p0PositionCS, float4 p1PositionCS, float4 p2PositionCS, float tolerance) {
+            bool ShouldClipPatch(float4 p0PositionCS, float4 p1PositionCS, float4 p2PositionCS, float tolerance) {
                 bool allOutside = IsPointOutOfFrustum(p0PositionCS,tolerance) &&
                     IsPointOutOfFrustum(p1PositionCS, tolerance) &&
                     IsPointOutOfFrustum(p2PositionCS, tolerance);
                 return allOutside || ShouldBackFaceCull(p0PositionCS,p1PositionCS,p2PositionCS,tolerance);
+            }
+
+            // dinamic tessellation factor for an edge
+            float EdgeTessellationFactor(float scale, float bias, float3 p0PositionWS, float4 p0PositionCS, float3 p1PositionWS, float4 p1PositionCS) {
+                float length = distance(p0PositionWS, p1PositionWS);
+                float distanceToCamera = distance(GetCameraPositionWS(), (p0PositionWS + p1PositionWS) * 0.5);
+                float factor = length / (scale * distanceToCamera * distanceToCamera);
+
+                return max(1, factor + bias);
             }
 
 
@@ -143,16 +196,15 @@ Shader "Unlit/Tesselation"
             {
                 UNITY_SETUP_INSTANCE_ID(patch[0]); // set up instancing
                 TessellationFactors f = (TessellationFactors)0;
-                float tolerance = 0.1f;
                 // Check if this patch should be culled (it is out of view)
-                if (ShouldClipPatch(patch[0].positionCS, patch[1].positionCS, patch[2].positionCS, tolerance)) {
+                if (ShouldClipPatch(patch[0].positionCS, patch[1].positionCS, patch[2].positionCS, _CullingTolerance)) {
                     f.edge[0] = f.edge[1] = f.edge[2] = f.inside = 0; // Cull the patch
                 }
                 else {
-                    f.edge[0] = _TessEdge.x * _TessUniform;
-                    f.edge[1] = _TessEdge.y * _TessUniform;
-                    f.edge[2] = _TessEdge.z * _TessUniform;
-                    f.inside = _TessInside * _TessUniform;
+                    f.edge[0] = EdgeTessellationFactor(_TessFactor, _TessBias, patch[1].positionWS, patch[1].positionCS, patch[2].positionWS, patch[2].positionCS);
+                    f.edge[1] = EdgeTessellationFactor(_TessFactor, _TessBias, patch[2].positionWS, patch[2].positionCS, patch[0].positionWS, patch[0].positionCS);
+                    f.edge[2] = EdgeTessellationFactor(_TessFactor, _TessBias, patch[0].positionWS, patch[0].positionCS, patch[1].positionWS, patch[1].positionCS);
+                    f.inside = (f.edge[0] + f.edge[1] + f.edge[2]) / 3.0;
                 }
                 return f;
             }
@@ -165,6 +217,7 @@ Shader "Unlit/Tesselation"
                 float3 normalWS : TEXCOORD0;
                 float3 positionWS : TEXCOORD1;
                 float4 positionCS : SV_POSITION;
+                float2 uv : TEXCOORD2;
             };
 
 #define BARYCENTRIC_INTERPOLATE(fieldName) \
@@ -183,6 +236,14 @@ Shader "Unlit/Tesselation"
                 float3 positionWS = BARYCENTRIC_INTERPOLATE(positionWS);
                 float3 normalWS = BARYCENTRIC_INTERPOLATE(normalWS);
 
+                // heightmap
+                float2 uv = BARYCENTRIC_INTERPOLATE(uv);
+                uv = (uv * _Scale) + float2(0, _Time.y * _Speed);
+                heightmap;  GradientNoise_float(uv, 1, heightmap);
+                float height = heightmap * _Height;
+                positionWS += normalWS * height;
+
+                output.uv = uv;
                 output.positionCS = TransformWorldToHClip(positionWS);
                 output.normalWS = normalWS;
                 output.positionWS = positionWS;
@@ -194,10 +255,14 @@ Shader "Unlit/Tesselation"
             //////////////// FRAGMENT STAGE ///////////////
             ///////////////////////////////////////////////
 
+
             fixed4 frag(Interpolators i) : SV_Target
             {
-                fixed4 col = _Color;
-                return col;
+                float depth = 1 - normalize(i.positionWS.y + _Depth_Fade_Distance);
+            fixed4 a = lerp(_Shallow_Color, _Deep_Color, depth);
+                
+                fixed4 col = fixed4(depth.xxxx);
+                return a;
             }
 
             ENDHLSL

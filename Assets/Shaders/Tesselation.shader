@@ -2,120 +2,239 @@ Shader "Unlit/Tesselation"
 {
     Properties
     {
-        _MainTex ("Texture", 2D) = "white" {}
-    _Color("Color",Color) = (1,1,1,1)
-        _TessellationUniform("TesselationUniform", Range(1,64)) = 1
+        _Color("Color",Color) = (1,1,1,1)
+
+        [Header(Tessellation)]
+        _TessFactor("Tesselation Factor", Float) = 1
+        _TessBias("Tesselation Bias",Float) = 1
+        _CullingTolerance("Culling Tolerance", Float) = 1
+
+        [Header(HeightMap)]
+        _Height("Height", Float) = 1
+        _Speed("Waves Speed",Float) = 1
+        _Scale("Waves Scale", Float) = 1
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags 
+        { 
+            "RenderPipeline"="UniversalPipeline"
+            "RenderType"="Opaque"
+            "Queue"="Geometry" 
+            "LightMode" = "UniversalForward"
+        }
         LOD 100
+        Cull Off
 
         Pass
         {
-            CGPROGRAM
+            HLSLPROGRAM
 
             #pragma vertex vert
-            #pragma fragment frag
             #pragma hull hull
             #pragma domain domain
-            #pragma target 4.6
+            #pragma fragment frag
+            #pragma target 5.0
 
 
-            #include "UnityCG.cginc"
-
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-                float4 tangent : TANGENT;
-                float3 normal : NORMAL;
-            };
-
-            struct v2f
-            {
-                float2 uv : TEXCOORD0;
-                float4 vertex : SV_POSITION;
-                float3 normal : TEXCOORD2;
-                float3 tangent : TEXCOORD3;
-            };
-
-            struct TessellationFactors {
-                float edge[3] : SV_TessFactor;
-                float inside : SV_InsideTessFactor;
-            };
+            #include "HLSLSupport.cginc"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl" 
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
+            #include "Assets/Shaders/Noise.hlsl" // to generate heightmap
 
 
             sampler2D _MainTex;
             float4 _MainTex_ST;
-            float _TessellationUniform;
+            float _TessBias;
+            float _TessFactor;
+            float4 _Color;
+            float _CullingTolerance;
+            float _Height;
+            float _Speed;
+            float _Scale;
 
+            float noise;
 
-            v2f vert (appdata v)
-            {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
+            ////////////////////////////////////////////
+            //////////////// VERTEX STAGE //////////////
+            ////////////////////////////////////////////
 
-                o.normal = v.normal;
-                o.tangent = v.tangent;
-                o.uv = v.uv;
+            struct Attributes {
+                float3 positionOS : POSITION;
+                float3 normalOS : NORMAL;
+                float2 uv : TEXCOORD0;
 
-                o.uv = v.uv;
-                return o;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct TessellationControlPoint {
+                float4 positionCS : SV_POSITION;
+                float3 positionWS : INTERNALTESSPOS;
+                float3 normalWS : NORMAL;
+                float2 uv : TEXCOORD0;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            // vertex function. just converts vertex and normal from OS to WS
+            TessellationControlPoint vert(Attributes input) {
+                TessellationControlPoint output;
+
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, output);
+
+                VertexPositionInputs posInputs = GetVertexPositionInputs(input.positionOS);
+                VertexNormalInputs normalInputs = GetVertexNormalInputs(input.normalOS);
+
+                output.positionWS = posInputs.positionWS;
+                output.positionCS = posInputs.positionCS;
+                output.normalWS = normalInputs.normalWS;
+                output.uv = input.uv;
+                return output;
             }
 
-            // le entra el triangulo y genera los factores de teselacion
-            TessellationFactors patchConstantFunction(
-                InputPatch<appdata, 3> patch)
-            {
-                TessellationFactors f;
-                f.edge[0] = _TessellationUniform;
-                f.edge[1] = _TessellationUniform;
-                f.edge[2] = _TessellationUniform;
-                f.inside = _TessellationUniform;
-                return f;
-            }
 
-            [UNITY_domain("tri")]               // define que trabaja con triangulos
-            [UNITY_outputcontrolpoints(3)]      // define que se establecen tres puntos d control por cada patch. uno para cada esquina del triangulo
-            [UNITY_outputtopology("triangle_cw")] // topologia de los triangulos que va a generar la GPU. si clockwise o counterclockwise
-            [UNITY_partitioning("integer")]     // metodo de partición del patch para la GPU
-            [UNITY_patchconstantfunc("patchConstantFunction")] // en cuantas partes se corta el patch, puede variar para cada uno
-            appdata hull(
-                InputPatch<appdata, 3> patch,
-                uint id : SV_OutputControlPointID)
+            ///////////////////////////////////////////
+            //////////////// HULL STAGE ///////////////
+            ///////////////////////////////////////////
+
+            // this function executes once per vertex in each patch
+            [domain("tri")] // signal we're inputting triangles
+            [outputcontrolpoints(3)] // establish 3 control point per patch. one for each triangle corner
+            [outputtopology("triangle_cw")] // signal we're outputin triangles. defines clockwise/counterclockwise topology
+            [partitioning("integer")] // patch partition method 
+            [patchconstantfunc("patchConstantFunction")] // register the patch constant function
+            TessellationControlPoint hull(
+                InputPatch<TessellationControlPoint, 3> patch, // input triangle
+                uint id : SV_OutputControlPointID) // vertex index on the triangle
             {
                 return patch[id];
             }
 
-            [UNITY_domain("tri")]
-            //InterpolatorsVertex domain(
-            v2f domain(
-                TessellationFactors factors,
-                OutputPatch<appdata, 3> patch,
-                float3 barycentricCoordinates : SV_DomainLocation /* coordenadas para generar nuevos vertices*/)
-            {
-                appdata data = (appdata)0; 
-                #define MY_DOMAIN_PROGRAM_INTERPOLATE(fieldName) data.fieldName = \
-		            patch[0].fieldName * barycentricCoordinates.x + \
-		            patch[1].fieldName * barycentricCoordinates.y + \
-		            patch[2].fieldName * barycentricCoordinates.z;
+            //#define NUM_BEZIER_CONTROL_POINTS 10
+            struct TessellationFactors {
+                float edge[3] : SV_TessFactor; // num of times an edge will subdivide
+                float inside : SV_InsideTessFactor; // num of times a new triangle will be created
+                //float3 bezierPoints[NUM_BEZIER_CONTROL_POINTS] : BEZIERPOS;
+            };
 
-                MY_DOMAIN_PROGRAM_INTERPOLATE(vertex)
-                MY_DOMAIN_PROGRAM_INTERPOLATE(normal)
-                MY_DOMAIN_PROGRAM_INTERPOLATE(tangent)
+            /////////////// CLIPPING AND CULLING ////////////////
 
-                return vert(data);
+            // true if p is outside the bounds set by lower and higher
+            bool IsOutOfBounds(float3 p, float3 lower, float3 higher) {
+                return p.x < lower.x || p.x > higher.x || p.y < lower.y || p.y > higher.y || p.z < lower.z || p.z > higher.z;
+            }
+            bool IsPointOutOfFrustum(float4 positionCS, float tolerance) {
+                float3 culling = positionCS.xyz;
+                float w = positionCS.w;
+                // UNITY_RAW_FAR_CLIP_VALUE is either 0 or 1, depending on the graphics API. OpenGL uses 1, the rest mostly 0.
+                float3 lowerBounds = float3(-w - tolerance, -w - tolerance, -w * UNITY_RAW_FAR_CLIP_VALUE - tolerance);
+                float3 higherBounds = float3(w + tolerance, w + tolerance, w + tolerance);
+                return IsOutOfBounds(culling, lowerBounds, higherBounds);
+            }
+
+            // Returns true if the points in this triangle are wound counter-clockwise
+            bool ShouldBackFaceCull(float4 p0PositionCS, float4 p1PositionCS, float4 p2PositionCS, float tolerance) {
+                float3 point0 = p0PositionCS.xyz / p0PositionCS.w;
+                float3 point1 = p1PositionCS.xyz / p1PositionCS.w;
+                float3 point2 = p2PositionCS.xyz / p2PositionCS.w;
+                //float3 normal = cross(point1 - point0, point2 - point0);
+                // In clip space, the view direction is float3(0, 0, 1), so we can just test the z coord
+                #if UNITY_REVERSED_Z
+                return cross(point1 - point0, point2 - point0).z < - tolerance;
+                #else // In OpenGL, the test is reversed
+                return cross(point1 - point0, point2 - point0).z > tolerance;
+                #endif            
+            }
+
+            bool ShouldClipPatch(float4 p0PositionCS, float4 p1PositionCS, float4 p2PositionCS, float tolerance) {
+                bool allOutside = IsPointOutOfFrustum(p0PositionCS,tolerance) &&
+                    IsPointOutOfFrustum(p1PositionCS, tolerance) &&
+                    IsPointOutOfFrustum(p2PositionCS, tolerance);
+                return allOutside || ShouldBackFaceCull(p0PositionCS,p1PositionCS,p2PositionCS,tolerance);
+            }
+
+            // dinamic tessellation factor for an edge
+            float EdgeTessellationFactor(float scale, float bias, float3 p0PositionWS, float4 p0PositionCS, float3 p1PositionWS, float4 p1PositionCS) {
+                float length = distance(p0PositionWS, p1PositionWS);
+                float distanceToCamera = distance(GetCameraPositionWS(), (p0PositionWS + p1PositionWS) * 0.5);
+                float factor = length / (scale * distanceToCamera * distanceToCamera);
+
+                return max(1, factor + bias);
             }
 
 
-            fixed4 frag(v2f i) : SV_Target
+            // this functions executes once per patch
+            TessellationFactors patchConstantFunction(
+                InputPatch<TessellationControlPoint, 3> patch)
             {
-                fixed4 col = tex2D(_MainTex, i.uv);
+                UNITY_SETUP_INSTANCE_ID(patch[0]); // set up instancing
+                TessellationFactors f = (TessellationFactors)0;
+                // Check if this patch should be culled (it is out of view)
+                if (ShouldClipPatch(patch[0].positionCS, patch[1].positionCS, patch[2].positionCS, _CullingTolerance)) {
+                    f.edge[0] = f.edge[1] = f.edge[2] = f.inside = 0; // Cull the patch
+                }
+                else {
+                    f.edge[0] = EdgeTessellationFactor(_TessFactor, _TessBias, patch[1].positionWS, patch[1].positionCS, patch[2].positionWS, patch[2].positionCS);
+                    f.edge[1] = EdgeTessellationFactor(_TessFactor, _TessBias, patch[2].positionWS, patch[2].positionCS, patch[0].positionWS, patch[0].positionCS);
+                    f.edge[2] = EdgeTessellationFactor(_TessFactor, _TessBias, patch[0].positionWS, patch[0].positionCS, patch[1].positionWS, patch[1].positionCS);
+                    f.inside = (f.edge[0] + f.edge[1] + f.edge[2]) / 3.0;
+                }
+                return f;
+            }
+
+            /////////////////////////////////////////////
+            ///////////////// DOMAIN STAGE //////////////
+            /////////////////////////////////////////////
+
+            struct Interpolators {
+                float3 normalWS : TEXCOORD0;
+                float3 positionWS : TEXCOORD1;
+                float4 positionCS : SV_POSITION;
+                float2 uv : TEXCOORD2;
+            };
+
+#define BARYCENTRIC_INTERPOLATE(fieldName) \
+    patch[0].fieldName * barycentricCoordinates.x + \
+    patch[1].fieldName * barycentricCoordinates.y + \
+    patch[2].fieldName * barycentricCoordinates.z;
+
+            [domain("tri")] // Signal we're inputting triangles
+            Interpolators domain(
+                TessellationFactors factors, // Output of the patch constant function
+                OutputPatch<TessellationControlPoint, 3> patch, // input triangle
+                float3 barycentricCoordinates : SV_DomainLocation )  // baricentric coords of the vertex of the triangle. for creating new vertices
+            {
+                Interpolators output;
+
+                float3 positionWS = BARYCENTRIC_INTERPOLATE(positionWS);
+                float3 normalWS = BARYCENTRIC_INTERPOLATE(normalWS);
+
+                // heightmap
+                float2 uv = BARYCENTRIC_INTERPOLATE(uv);
+                uv = (uv * _Scale) + float2(0, _Time.y * _Speed);
+                GradientNoise_float(uv, 1, noise);
+                float height = noise * _Height;
+                positionWS += normalWS * height;
+
+                output.uv = uv;
+                output.positionCS = TransformWorldToHClip(positionWS);
+                output.normalWS = normalWS;
+                output.positionWS = positionWS;
+
+                return output;
+            }
+
+            ///////////////////////////////////////////////
+            //////////////// FRAGMENT STAGE ///////////////
+            ///////////////////////////////////////////////
+
+            fixed4 frag(Interpolators i) : SV_Target
+            {
+                fixed4 col = _Color;
                 return col;
             }
 
-            ENDCG
+            ENDHLSL
         }
     }
 }

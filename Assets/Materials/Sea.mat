@@ -70,6 +70,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _BumpScale: 1
+    - _CullingTolerance: 19566
     - _Cutoff: 0.5
     - _DetailNormalMapScale: 1
     - _Displacement: 0.157
@@ -77,16 +78,20 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
+    - _Height: 2.2
     - _Metallic: 0
     - _Mode: 0
     - _NoiseScale: 21.6
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _Scale: 24.28
     - _SmoothnessTextureChannel: 0
     - _SpecularHighlights: 1
-    - _Speed: 1.26
+    - _Speed: 0.95
     - _SrcBlend: 1
     - _Tess: 6.2
+    - _TessBias: -0.42
+    - _TessFactor: 0.001
     - _TessInside: 1
     - _TessUniform: 1
     - _TessellationUniform: 1
