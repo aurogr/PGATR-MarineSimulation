@@ -8,7 +8,7 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Sea
-  m_Shader: {fileID: 4800000, guid: 4a53ac419f1694d4d978686d6b4e97a8, type: 3}
+  m_Shader: {fileID: 4800000, guid: b6570135d50c71f4c827d49bafc355eb, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -19,7 +19,7 @@ Material:
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
-  m_LockedProperties: 
+  m_LockedProperties: _Depth_Fade_Distance
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -72,34 +72,51 @@ Material:
     - _BumpScale: 1
     - _CullingTolerance: 19566
     - _Cutoff: 0.5
+    - _Depth_Fade_Distance: -2.4
     - _DetailNormalMapScale: 1
     - _Displacement: 0.157
     - _DstBlend: 0
+    - _FoamScale: 0.75
+    - _Foam_Blend: 0.35
+    - _Foam_Cutoff: 0.55
+    - _Foam_Distortion: -0.58
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
-    - _Height: 2.2
+    - _Height: 3.84
+    - _Horizon_Distance: 4.74
     - _Metallic: 0
     - _Mode: 0
     - _NoiseScale: 21.6
+    - _Normal_Scale: 23.37
+    - _Normal_Strength: 3.24
     - _OcclusionStrength: 1
     - _Parallax: 0.02
+    - _Roughness: 0.341
     - _Scale: 24.28
     - _SmoothnessTextureChannel: 0
+    - _Specular: 10
     - _SpecularHighlights: 1
-    - _Speed: 0.95
+    - _Speed: 0.15
     - _SrcBlend: 1
+    - _StreamDirection: 0.24
+    - _StreamSpeed: 0.34
     - _Tess: 6.2
-    - _TessBias: -0.42
+    - _TessBias: 3.11
     - _TessFactor: 0.001
     - _TessInside: 1
     - _TessUniform: 1
     - _TessellationUniform: 1
     - _UVSec: 0
     - _ZWrite: 1
+    - _aa: -1.01
     m_Colors:
     - _Color: {r: 0, g: 0.5578947, b: 1, a: 1}
+    - _Deep_Color: {r: 0.26165888, g: 0.336506, b: 0.5283019, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _Foam_Color: {r: 1, g: 1, b: 1, a: 0}
+    - _Horizon_Color: {r: 0, g: 0.11090227, b: 0.6313726, a: 0}
+    - _Shallow_Color: {r: 0.08784264, g: 0.2105449, b: 0.3962264, a: 1}
     - _SpecColor: {r: 0.6415094, g: 0, b: 0, a: 0.5}
     - _TessEdge: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []
