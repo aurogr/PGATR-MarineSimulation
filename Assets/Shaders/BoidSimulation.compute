@@ -17,7 +17,7 @@ uint _BoidCount;
 
 // Flocking Settings
 float _NeighborDetectionRadius;
-float _NeighbourAvoidanceRadius;
+float _NeighborAvoidanceRadius;
 float _MinSpeed;
 float _MaxSpeed;
 
@@ -73,7 +73,7 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             sumNeighborPositions += iPos;
             
             // Separation force (stronger the closer the neighbour is)
-            const float ths_dist = max(_NeighbourAvoidanceRadius, iDist);
+            const float ths_dist = max(_NeighborAvoidanceRadius, iDist);
             separationForce -= iDiff / (ths_dist * ths_dist); // Repulse
         }
     }

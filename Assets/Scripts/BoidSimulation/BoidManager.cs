@@ -88,8 +88,8 @@ public class BoidManager : MonoBehaviour
         // Send parameters to the compute shader
         computeShader.SetFloat("_DeltaTime", Time.deltaTime);
         computeShader.SetInt("_BoidCount", flockSize);
-        computeShader.SetFloat("_NeighborRadius", neighborDetectionRadius);
-        computeShader.SetFloat("_AvoidanceRadius", neighborAvoidanceRadius);
+        computeShader.SetFloat("_NeighborDetectionRadius", neighborDetectionRadius);
+        computeShader.SetFloat("_NeighborAvoidanceRadius", neighborAvoidanceRadius);
         computeShader.SetFloat("_MinSpeed", minSpeed);
         computeShader.SetFloat("_MaxSpeed", maxSpeed);
 

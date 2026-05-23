@@ -71,12 +71,12 @@ Shader "PGATR/Fish"
             {
                 float speed = length(IN[0].velocity);
                 
-                float3 fwd = speed > 0.001 ? IN[0].velocity / speed : float3(0, 0, 1);
+                float3 fwd = speed > 0.001 ? IN[0].velocity / speed : float3(0, 0, 1); // normalize (only if speed is greater than 0)
                 
                 float3 worldUp = float3(0, 1, 0);
                 if (abs(dot(fwd, worldUp)) > 0.98) 
                 {
-                    worldUp = float3(0, 0, 1); // Fallback to forward axis to avoid math implosion
+                    worldUp = float3(0, 0, 1);
                 }
 
                 float3 right = normalize(cross(worldUp, fwd));
@@ -103,24 +103,26 @@ Shader "PGATR/Fish"
                     // traveling wave, with a speed based on the boid's velocity, and an amplitude that increases towards the tail
                     // phase = time * speed - distance along the body, so the wave travels from head to tail
                     float wiggle = sin(_Time.y * wiggleSpeed - segmentPercent * 5.0) * wiggleAmp * segmentPercent;
-        
-                    // Shift the segment
+
+                    // shift to next segment
                     segmentPos += right * wiggle;
 
-                    // --- Top Vertex ---
+                    // top vertex
                     o.uv = float2(segmentPercent, 1.0);
                     float3 topWorldPos = segmentPos + localUp * size;
                     o.pos = TransformWorldToHClip(topWorldPos);
-                    // FIXED: Pass the computed clip-space Z directly from the transformation sequence
-                    o.fogFactor = ComputeFogFactor(o.pos.z);
+
+                    o.fogFactor = ComputeFogFactor(o.pos.z); // added fog for underwater effects
+
                     triStream.Append(o);
 
-                    // --- Bottom Vertex ---
+                    // bottom vertex
                     o.uv = float2(segmentPercent, 0.0);
                     float3 bottomWorldPos = segmentPos - localUp * size;
                     o.pos = TransformWorldToHClip(bottomWorldPos);
-                    // FIXED: Pass the computed clip-space Z directly from the transformation sequence
-                    o.fogFactor = ComputeFogFactor(o.pos.z);
+
+                    o.fogFactor = ComputeFogFactor(o.pos.z); // added fog for underwater effects
+
                     triStream.Append(o);
                 }
 
