@@ -59,7 +59,7 @@ Shader "Unlit/Water"
             #pragma domain domain
             #pragma fragment frag
             #pragma target 5.0
-
+            #pragma multi_compile_fog
 
             #include "HLSLSupport.cginc"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl" 
@@ -244,11 +244,12 @@ Shader "Unlit/Water"
 
             struct Interpolators {
                 float3 normalWS : TEXCOORD0;
+                float3 positionWS : TEXCOORD1;
+                float2 uv : TEXCOORD2;
                 float3 tangentWS : TEXCOORD3;
                 float3 bitangentWS : TEXCOORD4;
-                float3 positionWS : TEXCOORD1;
+                float fogFactor : TEXCOORD5;
                 float4 positionCS : SV_POSITION;
-                float2 uv : TEXCOORD2;
             };
 
 #define BARYCENTRIC_INTERPOLATE(fieldName) \
@@ -282,6 +283,8 @@ Shader "Unlit/Water"
                 output.positionWS = positionWS;
                 output.tangentWS = tangentWS;
                 output.bitangentWS = bitangentWS;
+
+                output.fogFactor = ComputeFogFactor(output.positionCS.z);
 
                 return output;
             }
@@ -405,7 +408,10 @@ Shader "Unlit/Water"
                 float4 baseColor = WaterDiffuse(i, refractedUVs, refractedDepth);
                 float4 waterSpecular = WaterSpecular(i, normalWaves);
                     
-                fixed4 col = baseColor + (edgeFoam * _Foam_Blend) + waterSpecular;
+                float4 col = baseColor + (edgeFoam * _Foam_Blend) + waterSpecular;
+                
+                col.rgb = MixFog(col.rgb, i.fogFactor);
+
                 return col;
             }
 
