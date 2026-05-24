@@ -6,7 +6,9 @@ Shader "PGATR/Seagull"
         _MainTex("Texture", 2D) = "white" {}
         _BodyCrease("Body Crease", Float) = 0.5
 		_FlapSpeedToVelocityRelation ("Flap Speed To Velocity Relation", Float) = 2
+        _MaxFlapSpeed("Max Flap Speed", Float) = 10
 		_FlapAmplitudeToSpeedRelation ("Flap Amplitude To Speed Relation", Float) = 0.2
+        _MaxFlapAmplitude("Max Flap Amplitude", Float) = 0.8
     }
 
     CGINCLUDE
@@ -119,6 +121,8 @@ Shader "PGATR/Seagull"
             float _SizeMin;
             float _SizeMax;
             float _BodyCrease;
+            float _MaxFlapSpeed;
+            float _MaxFlapAmplitude;
 
             [maxvertexcount(14)]
             void geo(point vertexOutput IN[1], inout TriangleStream<geometryOutput> triStream)
@@ -139,12 +143,10 @@ Shader "PGATR/Seagull"
 
                 // Animation
                 float rawFlapSpeed = speed * _FlapSpeedToVelocityRelation;
-                float maxFlapSpeed = 15.0;
-                float flapSin = sin(_Time.y * min(rawFlapSpeed, maxFlapSpeed));
+                float flapSin = sin(_Time.y * min(rawFlapSpeed, _MaxFlapSpeed));
 
-                float maxAngle = 0.8;
                 float baseAmp = speed * _FlapAmplitudeToSpeedRelation;
-                float amp =  min(maxAngle, baseAmp);
+                float amp =  min(_MaxFlapAmplitude, baseAmp);
 
                 // Rotation Matrices
                 float3x3 rotL = AngleAxis3x3(flapSin * amp, fwd);

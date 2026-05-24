@@ -17,7 +17,6 @@ uint _BoidCount;
 
 // Flocking Settings
 float _NeighborDetectionRadius;
-float _NeighborAvoidanceRadius;
 float _MinSpeed;
 float _MaxSpeed;
 
@@ -72,9 +71,10 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             sumNeighborVelocities += _boidBuffer[i].velocity;
             sumNeighborPositions += iPos;
             
-            // Separation force (stronger the closer the neighbour is)
-            const float ths_dist = max(_NeighborAvoidanceRadius, iDist);
-            separationForce -= iDiff / (ths_dist * ths_dist); // Repulse
+            const float ths_dist = max(0.01f, iDist);
+            
+            separationForce -= iDiff / (ths_dist * ths_dist);
+            
         }
     }
 
@@ -125,17 +125,30 @@ void CSMain (uint3 id : SV_DispatchThreadID)
 
     // ------- Update pos/vel -----------
     
-    // Update position
-    boid.position += boid.velocity * _DeltaTime;
-    // Clamp speed
-    float speed = length(boid.velocity);
-    if (speed > _MaxSpeed)
-        boid.velocity = (boid.velocity / speed) * _MaxSpeed;
-    else if (speed < _MinSpeed)
-        boid.velocity = (boid.velocity / speed) * _MinSpeed;
-    
     // Update speed
     boid.velocity += force * _DeltaTime;
+    
+    // Clamp speed
+    float speed = length(boid.velocity);
+    
+    if (speed > _MaxSpeed)
+    {
+        boid.velocity = (boid.velocity / speed) * _MaxSpeed;
+    }
+    else if (speed < _MinSpeed)
+    {
+        if (speed > 0.001f)
+        {
+            boid.velocity = (boid.velocity / speed) * _MinSpeed;
+        }
+        else
+        {
+            boid.velocity = float3(0, 0, 1) * _MinSpeed;
+        }
+    }
+    
+    // Update position
+    boid.position += boid.velocity * _DeltaTime;
     
     // Write back to buffer
     _boidBuffer[id.x] = boid;

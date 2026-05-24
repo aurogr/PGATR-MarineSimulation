@@ -13,23 +13,22 @@ public class BoidManager : MonoBehaviour
 
     [Header("Simulation settings")]
     [SerializeField][Range(0.0f, 50.0f)] float neighborDetectionRadius;
-    [SerializeField][Range(0.0f, 10.0f)] float neighborAvoidanceRadius;
     [SerializeField] float minSpeed;
     [SerializeField] float maxSpeed;
 
     [Header("Boundary settings")]
     [SerializeField] Vector3 boxSize;
-    [SerializeField][Range(0.0f, 10.0f)] float boundaryWeight;
+    [SerializeField][Range(0.0f, 5.0f)] float boundaryWeight;
 
     [Header("Target following settings")]
     [SerializeField] bool followTarget;
     [SerializeField] Transform target;
-    [SerializeField][Range (0.0f, 10.0f)] float targetWeight;
+    [SerializeField][Range (0.0f, 5.0f)] float targetWeight;
 
     [Header("Boid rules settings")]
-    [SerializeField][Range(0.0f, 50.0f)] float separationWeight;
-    [SerializeField][Range(0.0f, 50.0f)] float alignmentWeight;
-    [SerializeField][Range(0.0f, 50.0f)] float cohesionWeight;
+    [SerializeField][Range(0.0f, 20.0f)] float separationWeight;
+    [SerializeField][Range(0.0f, 5.0f)] float alignmentWeight;
+    [SerializeField][Range(0.0f, 5.0f)] float cohesionWeight;
 
     ComputeBuffer boidBuffer;
 
@@ -89,7 +88,6 @@ public class BoidManager : MonoBehaviour
         computeShader.SetFloat("_DeltaTime", Time.deltaTime);
         computeShader.SetInt("_BoidCount", flockSize);
         computeShader.SetFloat("_NeighborDetectionRadius", neighborDetectionRadius);
-        computeShader.SetFloat("_NeighborAvoidanceRadius", neighborAvoidanceRadius);
         computeShader.SetFloat("_MinSpeed", minSpeed);
         computeShader.SetFloat("_MaxSpeed", maxSpeed);
 

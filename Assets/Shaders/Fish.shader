@@ -5,7 +5,9 @@ Shader "PGATR/Fish"
         [Header(Shading)]
         _MainTex("Texture", 2D) = "white" {}
         _WiggleSpeedToVelocityRelation ("Wiggle Speed To Velocity Relation", Float) = 0.8
+        _MaxWiggleSpeed ("Max wiggle speed", Float) = 2
         _WiggleAmplitudeToVelocityRelation ("Wiggle Amplitude To Velocity Relation", Float) = 0.1
+        _MaxWiggleAmplitude("Max wiggle amplitude", Float) = 0.3
     }
 
     SubShader
@@ -65,6 +67,8 @@ Shader "PGATR/Fish"
 
             float _WiggleSpeedToVelocityRelation;
             float _WiggleAmplitudeToVelocityRelation;
+            float _MaxWiggleSpeed;
+            float _MaxWiggleAmplitude;
 
             [maxvertexcount(14)]
             void geo(point vertexOutput IN[1], inout TriangleStream<geometryOutput> triStream)
@@ -86,11 +90,9 @@ Shader "PGATR/Fish"
                 float fishLength = 2.0 * size; // the fish is longer than wider
 
                 // Animation
-                float maxWiggleSpeed = 5.0; 
-                float wiggleSpeed = min(speed * _WiggleSpeedToVelocityRelation, maxWiggleSpeed);
+                float wiggleSpeed = min(speed * _WiggleSpeedToVelocityRelation, _MaxWiggleSpeed);
 
-                float maxWiggleAmp = 0.4;
-                float wiggleAmp = min(speed * _WiggleAmplitudeToVelocityRelation, maxWiggleAmp);
+                float wiggleAmp = min(speed * _WiggleAmplitudeToVelocityRelation, _MaxWiggleAmplitude);
 
                 geometryOutput o;
                 float bodyX[7] = {0.0, 0.15, 0.50, 0.7, 0.8, 0.9, 1.0};
