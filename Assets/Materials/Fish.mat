@@ -74,6 +74,8 @@ Material:
     - _GlossMapScale: 1
     - _Glossiness: 0.5
     - _GlossyReflections: 1
+    - _MaxWiggleAmplitude: 0.5
+    - _MaxWiggleSpeed: 4
     - _Metallic: 0
     - _Mode: 0
     - _OcclusionStrength: 1
@@ -86,7 +88,7 @@ Material:
     - _SpecularHighlights: 1
     - _SrcBlend: 1
     - _UVSec: 0
-    - _WiggleAmplitudeToVelocityRelation: 0.1
+    - _WiggleAmplitudeToVelocityRelation: 0.2
     - _WiggleSpeedToVelocityRelation: 0.8
     - _ZWrite: 1
     m_Colors:

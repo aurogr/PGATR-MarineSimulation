@@ -17,7 +17,6 @@ uint _BoidCount;
 
 // Flocking Settings
 float _NeighborDetectionRadius;
-float _NeighbourAvoidanceRadius;
 float _MinSpeed;
 float _MaxSpeed;
 
@@ -70,11 +69,12 @@ void CSMain (uint3 id : SV_DispatchThreadID)
             neighborCount++;
             
             sumNeighborVelocities += _boidBuffer[i].velocity;
-            sumNeighborPositions += _boidBuffer[i].position;
+            sumNeighborPositions += iPos;
             
-            // Separation force (stronger the closer the neighbour is)
-            const float ths_dist = max(_NeighbourAvoidanceRadius, iDist);
-            separationForce -= iDiff / (ths_dist * ths_dist); // Repulse
+            const float ths_dist = max(0.01f, iDist);
+            
+            separationForce -= iDiff / (ths_dist * ths_dist);
+            
         }
     }
 
@@ -114,8 +114,8 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     // Cohesion and Alignment force
     if (neighborCount != 0)
     {
-        float3 avgPos = sumNeighborPositions / neighborCount;
-        float3 avgVelocity = sumNeighborVelocities / neighborCount;
+        float3 avgPos = sumNeighborPositions / (float) neighborCount;
+        float3 avgVelocity = sumNeighborVelocities / (float)neighborCount;
         force += _CohesionWeight * (avgPos - boid.position);
         force += _AlignmentWeight * (avgVelocity - boid.velocity);
     }
@@ -124,15 +124,28 @@ void CSMain (uint3 id : SV_DispatchThreadID)
     force += _SeparationWeight * separationForce;
 
     // ------- Update pos/vel -----------
+    
     // Update speed
     boid.velocity += force * _DeltaTime;
     
     // Clamp speed
     float speed = length(boid.velocity);
+    
     if (speed > _MaxSpeed)
+    {
         boid.velocity = (boid.velocity / speed) * _MaxSpeed;
+    }
     else if (speed < _MinSpeed)
-        boid.velocity = (boid.velocity / speed) * _MinSpeed;
+    {
+        if (speed > 0.001f)
+        {
+            boid.velocity = (boid.velocity / speed) * _MinSpeed;
+        }
+        else
+        {
+            boid.velocity = float3(0, 0, 1) * _MinSpeed;
+        }
+    }
     
     // Update position
     boid.position += boid.velocity * _DeltaTime;

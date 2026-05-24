@@ -35,6 +35,7 @@ Shader "Unlit/Tesselation"
             #pragma domain domain
             #pragma fragment frag
             #pragma target 5.0
+            #pragma multi_compile_fog
 
 
             #include "HLSLSupport.cginc"
@@ -191,6 +192,7 @@ Shader "Unlit/Tesselation"
                 float3 positionWS : TEXCOORD1;
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD2;
+                float fogFactor : TEXCOORD3;
             };
 
 #define BARYCENTRIC_INTERPOLATE(fieldName) \
@@ -220,6 +222,7 @@ Shader "Unlit/Tesselation"
                 output.positionCS = TransformWorldToHClip(positionWS);
                 output.normalWS = normalWS;
                 output.positionWS = positionWS;
+                output.fogFactor = ComputeFogFactor(output.positionCS.z);
 
                 return output;
             }
@@ -230,7 +233,10 @@ Shader "Unlit/Tesselation"
 
             fixed4 frag(Interpolators i) : SV_Target
             {
-                fixed4 col = _Color;
+                float4 col = _Color;
+                
+                col.rgb = MixFog(col.rgb, i.fogFactor);
+                
                 return col;
             }
 
