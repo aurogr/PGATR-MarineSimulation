@@ -4,7 +4,7 @@ University project for the subject "Graphic processors & Real-Time Applications"
 https://github.com/user-attachments/assets/5770d411-474a-4d63-ae55-fc864b91cebb
 
 
-- The sea is done with a tessellation shader, that increases geometric density based on camera proximity to optimize performance. It also has movement bia displacement of the height map in a wave pattern.
+- The sea is done with a tessellation shader, that increases geometric density based on camera proximity to optimize performance. It also has movement due to the displacement of the height map in a wave pattern.
 
 | Sand tessellation | Sea tessellation |
 | :---: | :---: |
